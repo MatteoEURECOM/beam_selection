@@ -36,8 +36,8 @@ Lidar2D = Sequential([
 
 GPS = Sequential([
     Input(shape=(3)),
-    Dense(100, activation='relu',kernel_regularizer=l2(l2=1e-4),bias_regularizer=l2(1e-4)),
-    Dense(100, activation='relu',kernel_regularizer=l2(l2=1e-4),bias_regularizer=l2(1e-4)),
+    Dense(50, activation='relu',kernel_regularizer=l2(l2=1e-4),bias_regularizer=l2(1e-4)),
+    Dense(50, activation='relu',kernel_regularizer=l2(l2=1e-4),bias_regularizer=l2(1e-4)),
     Dense(256, activation='softmax'),
 ])
 
