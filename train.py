@@ -1,5 +1,5 @@
 import numpy as np
-from models import MULTIMODAL,LIDAR2D,GPS,MULTIMODAL_OLD
+from models import MULTIMODAL,LIDAR,GPS,MULTIMODAL_OLD
 from dataLoader import load_dataset
 import pickle
 import tensorflow as tf
@@ -7,6 +7,7 @@ from tensorflow.keras import metrics
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.losses import categorical_crossentropy
 from tensorflow.keras.optimizers import Adadelta,Adam
+import matplotlib.pyplot  as plt
 
 ### Metrics ###
 def top_5_accuracy(y_true,y_pred):
@@ -35,29 +36,31 @@ def reorder(data, num_rows, num_columns):
     return new_vector
 
 
-#Training Parameters
-CURRICULUM= False
-SAVE_INIT=True
-NET_TYPE = 'MULTIMODAL'
-FLATTENED=True
-LIDAR_TYPE='ABSOLUTE'
-np.random.seed(2021)
+'''Training Parameters'''
+BETA=[0.2,0.4,0.6,0.8,1]    #Beta loss values to test
+CURRICULUM= False   #If True starts increases the NLOS samples percentage in the epoch accoring to the Perc array
+SAVE_INIT=True      #Use the same weights initialization each time beta is updated
+NET_TYPE = 'MULTIMODAL'    #Type of network
+FLATTENED=True      #If True Lidar is 2D
+SUM=False       #If True uses the method lidar_to_2d_summing() instead of lidar_to_2d() in dataLoader.py to process the LIDAR
+LIDAR_TYPE='ABSOLUTE'   #Type of lidar images CENTERED: lidar centered at Rx, ABSOLUTE: lidar images as provided  and ABSOLUTE_LARGE: lidar images of larger size
+np.random.seed(21)
 batch_size = 32
-num_epochs = 15
-learning_rate=0.0001
-#Loading Data
+num_epochs = 20
+
+'''Loading Data'''
 if LIDAR_TYPE=='CENTERED':
-    POS_tr, LIDAR_tr, Y_tr, NLOS_tr = load_dataset('./data/s008_centered.npz',FLATTENED)
-    POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_centered.npz',FLATTENED)
-    POS_te, LIDAR_te, Y_te, _ =load_dataset('./data/s010_centered.npz',FLATTENED)
+    POS_tr, LIDAR_tr, Y_tr, NLOS_tr = load_dataset('./data/s008_centered.npz',FLATTENED,SUM)
+    POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_centered.npz',FLATTENED,SUM)
+    POS_te, LIDAR_te, Y_te, _ =load_dataset('./data/s010_centered.npz',FLATTENED,SUM)
 elif LIDAR_TYPE=='ABSOLUTE':
-    POS_tr, LIDAR_tr, Y_tr, NLOS_tr = load_dataset('./data/s008.npz',FLATTENED)
-    POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009.npz',FLATTENED)
-    POS_te, LIDAR_te, Y_te, _ =load_dataset('./data/s010.npz',FLATTENED)
+    POS_tr, LIDAR_tr, Y_tr, NLOS_tr = load_dataset('./data/s008_original_labels.npz',FLATTENED,SUM)
+    POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_original_labels.npz',FLATTENED,SUM)
+    POS_te, LIDAR_te, Y_te, _ =load_dataset('./data/s010_original_labels.npz',FLATTENED,SUM)
 elif LIDAR_TYPE=='ABSOLUTE_LARGE':
-    POS_tr, LIDAR_tr, Y_tr, NLOS_tr = load_dataset('./data/s008_large.npz',FLATTENED)
-    POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_large.npz',FLATTENED)
-    POS_te, LIDAR_te, Y_te, _ =load_dataset('./data/s010_large.npz',FLATTENED)
+    POS_tr, LIDAR_tr, Y_tr, NLOS_tr = load_dataset('./data/s008_large.npz',FLATTENED,SUM)
+    POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_large.npz',FLATTENED,SUM)
+    POS_te, LIDAR_te, Y_te, _ =load_dataset('./data/s010_large.npz',FLATTENED,SUM)
 if CURRICULUM :
     data_size_curr=10000
     Perc=np.linspace(0.1,0.9,num_epochs)
@@ -69,14 +72,13 @@ if(NET_TYPE=='MULTIMODAL'):
 if(NET_TYPE=='MULTIMODAL_OLD'):
     model= MULTIMODAL_OLD(FLATTENED,LIDAR_TYPE)
 elif(NET_TYPE=='IPC'):
-    model= LIDAR2D(FLATTENED,LIDAR_TYPE)
+    model= LIDAR(FLATTENED,LIDAR_TYPE)
 elif (NET_TYPE == 'GPS'):
-    model = GPS(FLATTENED,LIDAR_TYPE)
-optim = Adam(lr=learning_rate)
-scheduler = lambda epoch, lr: lr if epoch < 10 else lr/10.
-callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
-
-for beta in [0.8]:
+    model = GPS()
+for beta in BETA:
+    optim = Adam(lr=1e-3, epsilon=1e-8)
+    scheduler = lambda epoch, lr: lr if epoch < 15 else lr/10.
+    callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
     model.compile(loss=KDLoss(beta),optimizer=optim,metrics=[metrics.categorical_accuracy,top_5_accuracy,top_10_accuracy,top_50_accuracy])
     model.summary()
     if(SAVE_INIT):

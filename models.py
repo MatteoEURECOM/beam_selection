@@ -6,7 +6,10 @@ import tensorflow.keras.utils
 from keras.regularizers import l2,l1
 from tensorflow.keras import initializers
 
-def LIDAR2D(FLATTENED,LIDAR_TYPE):
+def LIDAR(FLATTENED,LIDAR_TYPE):
+    '''
+    LIDAR Neural Network
+    '''
     if(LIDAR_TYPE=='CENTERED'):
         if(FLATTENED):
             input_lid = Input(shape=(67, 67, 1))
@@ -47,14 +50,20 @@ def LIDAR2D(FLATTENED,LIDAR_TYPE):
     return architecture
 
 def GPS():
+    '''
+    GPS Neural Network
+    '''
     input_lid = Input(shape=(3))
-    layer= Dense(50, activation='relu',kernel_regularizer=l2(l2=1e-4),bias_regularizer=l2(1e-4))(input_lid)
-    layer = Dense(50, activation='relu',kernel_regularizer=l2(l2=1e-4),bias_regularizer=l2(1e-4))(layer)
+    layer= Dense(100, activation='relu',kernel_regularizer=l2(l2=1e-4),bias_regularizer=l2(1e-4))(input_lid)
+    layer = Dense(100, activation='relu',kernel_regularizer=l2(l2=1e-4),bias_regularizer=l2(1e-4))(layer)
     predictions =Dense(256, activation='softmax')(layer)
     architecture = Model(inputs=input_lid, outputs=predictions)
     return architecture
 
 def MULTIMODAL(FLATTENED,LIDAR_TYPE):
+    '''
+    Multimodal Neural Network GPS+LIDAR
+    '''
     if(LIDAR_TYPE=='CENTERED'):
         if(FLATTENED):
             input_lid = Input(shape=(67, 67, 1))
@@ -70,31 +79,31 @@ def MULTIMODAL(FLATTENED,LIDAR_TYPE):
             input_lid = Input(shape=(60, 330, 1))
         else:
             input_lid = Input(shape=(60, 330, 10))
-    layer=GaussianNoise(0.005)(input_lid)
+    '''LIDAR branch'''
+    layer=GaussianNoise(0.01)(input_lid)
     layer = Conv2D(16, kernel_size=(3, 3), activation='linear', padding="SAME")(layer)
     layer=BatchNormalization(axis=3)(layer)
     layer=ReLU()(layer)
     layer = MaxPooling2D(pool_size=(2, 2), strides=(2, 2), padding='valid')(layer)
-    layer = Conv2D(8, kernel_size=(5, 5), activation='linear', padding="SAME")(layer)
+    layer = Conv2D(8, kernel_size=(3, 3), activation='linear', padding="SAME")(layer)
     layer = BatchNormalization(axis=3)(layer)
     layer = ReLU()(layer)
     layer = MaxPooling2D(pool_size=(2, 2), strides=(2, 2), padding='valid')(layer)
     layer = Conv2D(8, kernel_size=(3, 3), activation='linear', padding="SAME")(layer)
     layer = BatchNormalization(axis=3)(layer)
     layer = ReLU()(layer)
-    layer = Conv2D(4, kernel_size=(3, 3), activation='linear', padding="SAME")(layer)
+    layer = Conv2D(2, kernel_size=(3, 3), activation='linear', padding="SAME")(layer)
     layer = BatchNormalization(axis=3)(layer)
     layer = ReLU()(layer)
     out_lid = Flatten()(layer)
-
+    '''GPS branch'''
     input_coord = Input(shape=(3))
-    layer=GaussianNoise(0.002)(input_coord)
+    layer=GaussianNoise(0.01)(input_coord)
     out_coord = Dense(10, activation='relu')(layer)
-
+    '''Concatenation'''
     concatenated = concatenate([out_lid, out_coord])
     layer = Dense(50, activation='relu', kernel_regularizer=l1(1e-4), bias_regularizer=l1(1e-4))(concatenated)
     layer = Dense(50, activation='relu',kernel_regularizer=l1(1e-4),bias_regularizer=l1(1e-4))(layer)
-    layer = Dense(50, activation='relu', kernel_regularizer=l1(1e-4), bias_regularizer=l1(1e-4))(layer)
     predictions= Dense(256, activation='softmax',kernel_regularizer=l1(1e-4),bias_regularizer=l1(1e-4))(layer)
     architecture = Model(inputs=[input_lid,input_coord], outputs=predictions)
     return architecture
@@ -126,10 +135,11 @@ def MULTIMODAL_OLD(FLATTENED,LIDAR_TYPE):
     layer = Conv2D(16, kernel_size=(3, 3), activation='relu', padding="SAME")(layer)
     layer = Flatten()(layer)
     out_lid = Dense(400, activation='relu', kernel_regularizer=l2(0.01), bias_regularizer=l2(0.01))(layer)
+    '''GPS branch'''
     input_coord = Input(shape=(3))
     layer = Dense(128, activation='relu')(input_coord)
     out_coord =GaussianNoise(0.002)(layer)
-
+    '''Concatenation'''
     concatenated = concatenate([out_lid, out_coord])
     reg_val = 0.001
     layer = Dense(600, activation='relu', kernel_regularizer=l2(reg_val), bias_regularizer=l2(reg_val))(concatenated)
