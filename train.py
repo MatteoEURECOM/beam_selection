@@ -41,12 +41,14 @@ def reorder(data, num_rows, num_columns):
 BETA=[0.8]    #Beta loss values to test
 CURRICULUM= False   #If True starts increases the NLOS samples percentage in the epoch accoring to the Perc array
 SAVE_INIT=True      #Use the same weights initialization each time beta is updated
-NET_TYPE = 'IPC'    #Type of network
+NET_TYPE = 'MULTIMODAL'    #Type of network
 FLATTENED=True      #If True Lidar is 2D
 SUM=False       #If True uses the method lidar_to_2d_summing() instead of lidar_to_2d() in dataLoader.py to process the LIDAR
 SHUFFLE=True
 LIDAR_TYPE='ABSOLUTE'   #Type of lidar images CENTERED: lidar centered at Rx, ABSOLUTE: lidar images as provided  and ABSOLUTE_LARGE: lidar images of larger size
-np.random.seed(21)
+seed=1
+np.random.seed(seed)
+tf.random.set_seed(seed)
 batch_size = 16
 num_epochs = 15
 
@@ -90,9 +92,11 @@ if(False):
     plt.show()
 
 if CURRICULUM :
+    num_epochs=int(num_epochs*1.5)
     Perc=np.linspace(0,1,num_epochs)
     NLOSind = np.where(NLOS_tr == 0)[0]
     LOSind = np.where(NLOS_tr == 1)[0]
+
 #Initializing the model
 if(NET_TYPE=='MULTIMODAL'):
     model= MULTIMODAL(FLATTENED,LIDAR_TYPE)
@@ -113,13 +117,20 @@ for beta in BETA:
         SAVE_INIT=False
     else:
         model.set_weights(INIT_WEIGHTS)
-    checkpoint = ModelCheckpoint('./saved_models/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'.h5', monitor='val_top_10_accuracy', verbose=1,  save_best_only=True, save_weights_only=True, mode='auto', save_frequency=1)
+    if(CURRICULUM):
+        checkpoint = ModelCheckpoint('./saved_models/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'CURRICULUM.h5', monitor='val_top_10_accuracy', verbose=1,  save_best_only=True, save_weights_only=True, mode='auto', save_frequency=1)
+    else:
+        checkpoint = ModelCheckpoint('./saved_models/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'.h5', monitor='val_top_10_accuracy', verbose=1,  save_best_only=True, save_weights_only=True, mode='auto', save_frequency=1)
     #Training Phase
     if(NET_TYPE=='MULTIMODAL'):
         if(CURRICULUM):
             for ep in range(0,num_epochs):
                 ind=np.concatenate((np.random.choice(NLOSind, int((Perc[ep])*NLOSind.shape[0])),np.random.choice(LOSind, LOSind.shape[0])),axis=None)
+
                 model.fit([LIDAR_tr[ind,:,:,:],POS_tr[ind,:]], Y_tr[ind,:],validation_data=([LIDAR_val, POS_val], Y_val), epochs=1,batch_size=batch_size, callbacks=[checkpoint, callback])
+
+                hist = model.fit([LIDAR_tr[ind,:,:,:],POS_tr[ind,:]], Y_tr[ind,:],validation_data=([LIDAR_val, POS_val], Y_val), epochs=1,batch_size=batch_size, callbacks=[checkpoint, callback])
+
         else:
             hist = model.fit([LIDAR_tr,POS_tr], Y_tr, validation_data=([LIDAR_val,POS_val], Y_val), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])
     elif(NET_TYPE=='IPC'):
@@ -127,7 +138,9 @@ for beta in BETA:
             for ep in range(0, num_epochs):
                 #ind = np.concatenate((np.random.choice(NLOSind, int(Perc[ep] * data_size_curr)),np.random.choice(LOSind, int((1 - Perc[ep]) * data_size_curr))), axis=None)
                 ind = np.concatenate((np.random.choice(NLOSind, int((Perc[ep]) * NLOSind.shape[0])),np.random.choice(LOSind, LOSind.shape[0])), axis=None)
+
                 model.fit(LIDAR_tr[ind, :, :, :], Y_tr[ind, :],validation_data=(LIDAR_val, Y_val), epochs=1, batch_size=batch_size,callbacks=[checkpoint, callback])
+                hist = model.fit(LIDAR_tr[ind, :, :, :], Y_tr[ind, :],validation_data=(LIDAR_val, Y_val), epochs=1, batch_size=batch_size,callbacks=[checkpoint, callback])
         else:
             hist = model.fit(LIDAR_tr, Y_tr, validation_data=(LIDAR_val, Y_val), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])
     elif (NET_TYPE == 'GPS'):
@@ -135,14 +148,21 @@ for beta in BETA:
             for ep in range(0, num_epochs):
                 #ind = np.concatenate((np.random.choice(NLOSind, int(Perc[ep] * data_size_curr)),np.random.choice(LOSind, int((1 - Perc[ep]) * data_size_curr))), axis=None)
                 ind = np.concatenate((np.random.choice(NLOSind, int((Perc[ep]) * NLOSind.shape[0])),np.random.choice(LOSind, LOSind.shape[0])), axis=None)
-                hist = model.fit(POS_tr[ind,:], Y_tr, validation_data=(POS_val[ind,:], Y_val), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])
+                hist = model.fit(POS_tr[ind,:], Y_tr[ind, :], validation_data=(POS_val, Y_val), epochs=1, batch_size=batch_size,callbacks=[checkpoint, callback])
         else:
             hist = model.fit(POS_tr, Y_tr, validation_data=(POS_val, Y_val), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])
     #Saving weights and history for later
-    model.save_weights('./saved_models/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'FINAL.h5')
-    with open('./saved_models/History'+NET_TYPE+'_BETA_'+str(int(beta*10)), 'wb') as file_pi:
-        pickle.dump(hist.history, file_pi)
-    model.load_weights('./saved_models/' + NET_TYPE + '_BETA_' + str(int(beta * 10))+'.h5')
+    if(CURRICULUM):
+        model.save_weights('./saved_models/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'FINAL_CURRICULUM.h5')
+        with open('./saved_models/History'+NET_TYPE+'_BETA_'+str(int(beta*10))+'CURRICULUM', 'wb') as file_pi:
+         pickle.dump(hist.history, file_pi)
+        model.load_weights('./saved_models/' + NET_TYPE + '_BETA_' + str(int(beta * 10))+'CURRICULUM.h5')
+    else:
+        model.save_weights('./saved_models/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'FINAL.h5')
+        with open('./saved_models/History'+NET_TYPE+'_BETA_'+str(int(beta*10)), 'wb') as file_pi:
+            pickle.dump(hist.history, file_pi)
+        model.load_weights('./saved_models/' + NET_TYPE + '_BETA_' + str(int(beta * 10))+'.h5')
+
     #Testing phase on s010
     if(NET_TYPE=='MULTIMODAL'):
         preds = model.predict([LIDAR_te,POS_te])
@@ -160,4 +180,7 @@ for beta in BETA:
         to_save.append(new_vector)
     to_save=np.asarray(to_save)
     pred= np.argsort(-to_save, axis=1) #Descending order
-    np.savetxt('./saved_models/PREDS_'+NET_TYPE+'_BETA_'+str(int(beta*10))+'.csv', pred, delimiter=',')
+    if(CURRICULUM):
+        np.savetxt('./saved_models/PREDS_'+NET_TYPE+'_BETA_'+str(int(beta*10))+'CURRICULUM.csv', pred, delimiter=',')
+    else:
+        np.savetxt('./saved_models/PREDS_'+NET_TYPE+'_BETA_'+str(int(beta*10))+'.csv', pred, delimiter=',')
