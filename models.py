@@ -102,9 +102,9 @@ def MULTIMODAL(FLATTENED,LIDAR_TYPE):
     out_coord = Dense(10, activation='relu')(layer)
     '''Concatenation'''
     concatenated = concatenate([out_lid, out_coord])
-    layer = Dense(50, activation='relu', kernel_regularizer=l1(1e-4), bias_regularizer=l1(1e-4))(concatenated)
-    layer = Dense(50, activation='relu',kernel_regularizer=l1(1e-4),bias_regularizer=l1(1e-4))(layer)
-    predictions= Dense(256, activation='softmax',kernel_regularizer=l1(1e-4),bias_regularizer=l1(1e-4))(layer)
+    layer = Dense(50, activation='relu', kernel_regularizer=l2(1e-4), bias_regularizer=l2(1e-4))(concatenated)
+    layer = Dense(50, activation='relu',kernel_regularizer=l2(1e-4),bias_regularizer=l2(1e-4))(layer)
+    predictions= Dense(256, activation='softmax',kernel_regularizer=l2(1e-4),bias_regularizer=l2(1e-4))(layer)
     architecture = Model(inputs=[input_lid,input_coord], outputs=predictions)
     return architecture
 

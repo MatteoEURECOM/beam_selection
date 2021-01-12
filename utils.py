@@ -8,8 +8,8 @@ import tensorflow as tf
 import keras
 
 FLATTENED=True
+SUM=False
 LIDAR_TYPE='ABSOLUTE'
-
 '''
 g = tf.Graph()
 run_meta = tf.compat.v1.RunMetadata()
@@ -72,11 +72,11 @@ def plots009(saved_model,Net):
     ### Plot Validation Accuracy for LoS and NLoS channels
     #NLOS
     if LIDAR_TYPE=='CENTERED':
-        POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_centered.npz',FLATTENED)
+        POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_centered.npz',FLATTENED,SUM)
     elif LIDAR_TYPE=='ABSOLUTE':
-        POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009.npz',FLATTENED)
+        POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009.npz',FLATTENED,SUM)
     elif LIDAR_TYPE=='ABSOLUTE_LARGE':
-        POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_large.npz',FLATTENED)
+        POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_large.npz',FLATTENED,SUM)
     if (Net == 'MULTIMODAL'):
         model= MULTIMODAL(FLATTENED,LIDAR_TYPE)
         model.load_weights(saved_model)
@@ -101,11 +101,11 @@ def plotNLOSvsLOS(saved_model,Net):
     ### Plot Validation Accuracy for LoS and NLoS channels
     #NLOS
     if LIDAR_TYPE=='CENTERED':
-        POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_centered.npz',FLATTENED)
+        POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_centered.npz',FLATTENED,SUM)
     elif LIDAR_TYPE=='ABSOLUTE':
-        POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009.npz',FLATTENED)
+        POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009.npz',FLATTENED,SUM)
     elif LIDAR_TYPE=='ABSOLUTE_LARGE':
-        POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_large.npz',FLATTENED)
+        POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_large.npz',FLATTENED,SUM)
     NLOSind = np.where(NLOS_val == 0)[0]  # Get the NLoS users
     LOSind = np.where(NLOS_val== 1)[0]    # Get the LoS users
     if (Net == 'MULTIMODAL'):

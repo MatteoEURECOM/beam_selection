@@ -21,7 +21,8 @@ def top_50_accuracy(y_true,y_pred):
 def KDLoss(beta):
     def loss(y_true,y_pred):
         y_true_hard = tf.one_hot(tf.argmax(y_true, axis = 1), depth = 256)
-        return beta*categorical_crossentropy(y_true,y_pred)+(1-beta)*categorical_crossentropy(y_true_hard,y_pred)
+        kl = tf.keras.losses.KLDivergence()
+        return beta*kl(y_true,y_pred)+(1-beta)*categorical_crossentropy(y_true_hard,y_pred)
     return loss
 
 def reorder(data, num_rows, num_columns):
@@ -37,15 +38,16 @@ def reorder(data, num_rows, num_columns):
 
 
 '''Training Parameters'''
-BETA=[0.2,0.4,0.6,0.8,1]    #Beta loss values to test
+BETA=[0.8]    #Beta loss values to test
 CURRICULUM= False   #If True starts increases the NLOS samples percentage in the epoch accoring to the Perc array
 SAVE_INIT=True      #Use the same weights initialization each time beta is updated
-NET_TYPE = 'MULTIMODAL'    #Type of network
+NET_TYPE = 'IPC'    #Type of network
 FLATTENED=True      #If True Lidar is 2D
 SUM=False       #If True uses the method lidar_to_2d_summing() instead of lidar_to_2d() in dataLoader.py to process the LIDAR
+SHUFFLE=True
 LIDAR_TYPE='ABSOLUTE'   #Type of lidar images CENTERED: lidar centered at Rx, ABSOLUTE: lidar images as provided  and ABSOLUTE_LARGE: lidar images of larger size
 np.random.seed(21)
-batch_size = 32
+batch_size = 16
 num_epochs = 20
 
 '''Loading Data'''
@@ -61,6 +63,13 @@ elif LIDAR_TYPE=='ABSOLUTE_LARGE':
     POS_tr, LIDAR_tr, Y_tr, NLOS_tr = load_dataset('./data/s008_large.npz',FLATTENED,SUM)
     POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_large.npz',FLATTENED,SUM)
     POS_te, LIDAR_te, Y_te, _ =load_dataset('./data/s010_large.npz',FLATTENED,SUM)
+if(SHUFFLE):
+    ind=np.random.shuffle(np.arange(Y_tr.shape[0])-1)
+    POS_tr=POS_tr[ind,:][0]
+    LIDAR_tr=LIDAR_tr[ind,:,:,:][0]
+    Y_tr=Y_tr[ind,:][0]
+    NLOS_tr=NLOS_tr[ind][0]
+
 if CURRICULUM :
     data_size_curr=10000
     Perc=np.linspace(0.1,0.9,num_epochs)
@@ -77,7 +86,7 @@ elif (NET_TYPE == 'GPS'):
     model = GPS()
 for beta in BETA:
     optim = Adam(lr=1e-3, epsilon=1e-8)
-    scheduler = lambda epoch, lr: lr if epoch < 15 else lr/10.
+    scheduler = lambda epoch, lr: lr if epoch < 10 else lr/10.
     callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
     model.compile(loss=KDLoss(beta),optimizer=optim,metrics=[metrics.categorical_accuracy,top_5_accuracy,top_10_accuracy,top_50_accuracy])
     model.summary()
@@ -92,23 +101,23 @@ for beta in BETA:
         if(CURRICULUM):
             for ep in range(0,num_epochs):
                 ind=np.concatenate((np.random.choice(NLOSind, int(Perc[ep]*data_size_curr)),np.random.choice(LOSind, int((1-Perc[ep])*data_size_curr))),axis=None)
-                model.fit([LIDAR_tr[ind,:,:,:],Y_tr[ind,:]], Y_tr[ind,:],validation_data=([LIDAR_te, Y_te], Y_te), epochs=1,batch_size=batch_size, callbacks=[checkpoint, callback])
+                model.fit([LIDAR_tr[ind,:,:,:],Y_tr[ind,:]], Y_tr[ind,:],validation_data=([LIDAR_val, Y_te], Y_val), epochs=1,batch_size=batch_size, callbacks=[checkpoint, callback])
         else:
-            hist = model.fit([LIDAR_tr,POS_tr], Y_tr, validation_data=([LIDAR_te,POS_te], Y_te), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])
+            hist = model.fit([LIDAR_tr,POS_tr], Y_tr, validation_data=([LIDAR_val,POS_val], Y_val), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])
     elif(NET_TYPE=='IPC'):
         if (CURRICULUM):
             for ep in range(0, num_epochs):
                 ind = np.concatenate((np.random.choice(NLOSind, int(Perc[ep] * data_size_curr)),np.random.choice(LOSind, int((1 - Perc[ep]) * data_size_curr))), axis=None)
-                model.fit(LIDAR_tr[ind, :, :, :], Y_tr[ind, :],validation_data=(LIDAR_te, Y_te), epochs=1, batch_size=batch_size,callbacks=[checkpoint, callback])
+                model.fit(LIDAR_tr[ind, :, :, :], Y_tr[ind, :],validation_data=(LIDAR_val, Y_val), epochs=1, batch_size=batch_size,callbacks=[checkpoint, callback])
         else:
-            hist = model.fit(LIDAR_tr, Y_tr, validation_data=(LIDAR_te, Y_te), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])
+            hist = model.fit(LIDAR_tr, Y_tr, validation_data=(LIDAR_val, Y_val), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])
     elif (NET_TYPE == 'GPS'):
         if (CURRICULUM):
             for ep in range(0, num_epochs):
                 ind = np.concatenate((np.random.choice(NLOSind, int(Perc[ep] * data_size_curr)),np.random.choice(LOSind, int((1 - Perc[ep]) * data_size_curr))), axis=None)
-                hist = model.fit(POS_tr[ind,:], Y_tr, validation_data=(POS_te[ind,:], Y_te), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])
+                hist = model.fit(POS_tr[ind,:], Y_tr, validation_data=(POS_val[ind,:], Y_val), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])
         else:
-            hist = model.fit(POS_tr, Y_tr, validation_data=(POS_te, Y_te), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])
+            hist = model.fit(POS_tr, Y_tr, validation_data=(POS_val, Y_val), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])
     #Saving weights and history for later
     model.save_weights('./saved_models/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'FINAL.h5')
     with open('./saved_models/History'+NET_TYPE+'_BETA_'+str(int(beta*10)), 'wb') as file_pi:
