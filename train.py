@@ -22,7 +22,7 @@ def KDLoss(beta):
     def loss(y_true,y_pred):
         y_true_hard = tf.one_hot(tf.argmax(y_true, axis = 1), depth = 256)
         kl = tf.keras.losses.KLDivergence()
-        return beta*kl(y_true,y_pred)+(1-beta)*categorical_crossentropy(y_true_hard,y_pred)
+        return beta*kl(y_true,y_pred)+(1-beta)*kl(y_true_hard,y_pred)
     return loss
 
 def reorder(data, num_rows, num_columns):
@@ -48,7 +48,7 @@ SHUFFLE=True
 LIDAR_TYPE='ABSOLUTE'   #Type of lidar images CENTERED: lidar centered at Rx, ABSOLUTE: lidar images as provided  and ABSOLUTE_LARGE: lidar images of larger size
 np.random.seed(21)
 batch_size = 16
-num_epochs = 20
+num_epochs = 15
 
 '''Loading Data'''
 if LIDAR_TYPE=='CENTERED':
@@ -70,9 +70,27 @@ if(SHUFFLE):
     Y_tr=Y_tr[ind,:][0]
     NLOS_tr=NLOS_tr[ind][0]
 
+
+if(False):
+    f, axarr = plt.subplots(3, 1)
+    axarr[0].imshow(np.squeeze(np.mean(LIDAR_tr, axis=0)))
+    axarr[1].imshow(np.squeeze(np.mean(LIDAR_val, axis=0)))
+    axarr[2].imshow(np.squeeze(np.mean(LIDAR_te, axis=0)))
+    plt.show()
+    LIDAR_tr[LIDAR_tr < 0.6] = 0
+    LIDAR_tr[LIDAR_tr > 0.8] = 0
+    LIDAR_val[LIDAR_val < 0.6] = 0
+    LIDAR_val[LIDAR_val > 0.8] = 0
+    LIDAR_te[LIDAR_te < 0.6] = 0
+    LIDAR_te[LIDAR_te > 0.8] = 0
+    f, axarr = plt.subplots(3, 1)
+    axarr[0].imshow(np.squeeze(np.mean(LIDAR_tr, axis=0)))
+    axarr[1].imshow(np.squeeze(np.mean(LIDAR_val, axis=0)))
+    axarr[2].imshow(np.squeeze(np.mean(LIDAR_te, axis=0)))
+    plt.show()
+
 if CURRICULUM :
-    data_size_curr=10000
-    Perc=np.linspace(0.1,0.9,num_epochs)
+    Perc=np.linspace(0,1,num_epochs)
     NLOSind = np.where(NLOS_tr == 0)[0]
     LOSind = np.where(NLOS_tr == 1)[0]
 #Initializing the model
@@ -86,7 +104,7 @@ elif (NET_TYPE == 'GPS'):
     model = GPS()
 for beta in BETA:
     optim = Adam(lr=1e-3, epsilon=1e-8)
-    scheduler = lambda epoch, lr: lr if epoch < 10 else lr/10.
+    scheduler = lambda epoch, lr: lr if epoch < 10 else lr*tf.math.exp(-0.1)
     callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
     model.compile(loss=KDLoss(beta),optimizer=optim,metrics=[metrics.categorical_accuracy,top_5_accuracy,top_10_accuracy,top_50_accuracy])
     model.summary()
@@ -100,21 +118,23 @@ for beta in BETA:
     if(NET_TYPE=='MULTIMODAL'):
         if(CURRICULUM):
             for ep in range(0,num_epochs):
-                ind=np.concatenate((np.random.choice(NLOSind, int(Perc[ep]*data_size_curr)),np.random.choice(LOSind, int((1-Perc[ep])*data_size_curr))),axis=None)
-                model.fit([LIDAR_tr[ind,:,:,:],Y_tr[ind,:]], Y_tr[ind,:],validation_data=([LIDAR_val, Y_te], Y_val), epochs=1,batch_size=batch_size, callbacks=[checkpoint, callback])
+                ind=np.concatenate((np.random.choice(NLOSind, int((Perc[ep])*NLOSind.shape[0])),np.random.choice(LOSind, LOSind.shape[0])),axis=None)
+                model.fit([LIDAR_tr[ind,:,:,:],POS_tr[ind,:]], Y_tr[ind,:],validation_data=([LIDAR_val, POS_val], Y_val), epochs=1,batch_size=batch_size, callbacks=[checkpoint, callback])
         else:
             hist = model.fit([LIDAR_tr,POS_tr], Y_tr, validation_data=([LIDAR_val,POS_val], Y_val), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])
     elif(NET_TYPE=='IPC'):
         if (CURRICULUM):
             for ep in range(0, num_epochs):
-                ind = np.concatenate((np.random.choice(NLOSind, int(Perc[ep] * data_size_curr)),np.random.choice(LOSind, int((1 - Perc[ep]) * data_size_curr))), axis=None)
+                #ind = np.concatenate((np.random.choice(NLOSind, int(Perc[ep] * data_size_curr)),np.random.choice(LOSind, int((1 - Perc[ep]) * data_size_curr))), axis=None)
+                ind = np.concatenate((np.random.choice(NLOSind, int((Perc[ep]) * NLOSind.shape[0])),np.random.choice(LOSind, LOSind.shape[0])), axis=None)
                 model.fit(LIDAR_tr[ind, :, :, :], Y_tr[ind, :],validation_data=(LIDAR_val, Y_val), epochs=1, batch_size=batch_size,callbacks=[checkpoint, callback])
         else:
             hist = model.fit(LIDAR_tr, Y_tr, validation_data=(LIDAR_val, Y_val), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])
     elif (NET_TYPE == 'GPS'):
         if (CURRICULUM):
             for ep in range(0, num_epochs):
-                ind = np.concatenate((np.random.choice(NLOSind, int(Perc[ep] * data_size_curr)),np.random.choice(LOSind, int((1 - Perc[ep]) * data_size_curr))), axis=None)
+                #ind = np.concatenate((np.random.choice(NLOSind, int(Perc[ep] * data_size_curr)),np.random.choice(LOSind, int((1 - Perc[ep]) * data_size_curr))), axis=None)
+                ind = np.concatenate((np.random.choice(NLOSind, int((Perc[ep]) * NLOSind.shape[0])),np.random.choice(LOSind, LOSind.shape[0])), axis=None)
                 hist = model.fit(POS_tr[ind,:], Y_tr, validation_data=(POS_val[ind,:], Y_val), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])
         else:
             hist = model.fit(POS_tr, Y_tr, validation_data=(POS_val, Y_val), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])

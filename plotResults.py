@@ -5,7 +5,7 @@ Net = 'IPC'
 BETA=[0.2,0.4,0.6,0.8,1]
 
 for beta in  BETA:
-    curve_NLOS,curve_LOS=plotNLOSvsLOS('./saved_models/'+Net+'_BETA_'+str(int(beta*10))+'.h5',Net)
+    curve_LOS,curve_NLOS=plotNLOSvsLOS('./saved_models/'+Net+'_BETA_'+str(int(beta*10))+'.h5',Net)
     plt.plot(range(0, 256), curve_NLOS / curve_NLOS[len(curve_NLOS) - 1], color = [1,beta,0.5*beta],lineStyle='--', label='NLoS '+Net+r' $\beta $='+str(beta), linewidth=1.5)
     plt.plot(range(0, 256), curve_LOS / curve_LOS[len(curve_LOS) - 1], color = [1,beta,0.5*beta], label='LoS '+Net+r' $\beta $='+str(beta), linewidth=1.5)
 plt.xlabel('K')
