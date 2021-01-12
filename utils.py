@@ -74,7 +74,7 @@ def plots009(saved_model,Net):
     if LIDAR_TYPE=='CENTERED':
         POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_centered.npz',FLATTENED,SUM)
     elif LIDAR_TYPE=='ABSOLUTE':
-        POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009.npz',FLATTENED,SUM)
+        POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_original_labels.npz',FLATTENED,SUM)
     elif LIDAR_TYPE=='ABSOLUTE_LARGE':
         POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_large.npz',FLATTENED,SUM)
     if (Net == 'MULTIMODAL'):
@@ -103,7 +103,7 @@ def plotNLOSvsLOS(saved_model,Net):
     if LIDAR_TYPE=='CENTERED':
         POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_centered.npz',FLATTENED,SUM)
     elif LIDAR_TYPE=='ABSOLUTE':
-        POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009.npz',FLATTENED,SUM)
+        POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_original_labels.npz',FLATTENED,SUM)
     elif LIDAR_TYPE=='ABSOLUTE_LARGE':
         POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_large.npz',FLATTENED,SUM)
     NLOSind = np.where(NLOS_val == 0)[0]  # Get the NLoS users

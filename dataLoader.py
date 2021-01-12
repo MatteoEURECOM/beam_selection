@@ -42,6 +42,9 @@ def load_dataset(filename,FLATTENED,SUM):
         LIDAR = np.expand_dims(lidar_to_2d_summing(LIDAR), axis=3)
     elif(FLATTENED and not SUM):
         LIDAR = np.expand_dims(lidar_to_2d(LIDAR), axis=3)
+        #Rx_ind = LIDAR == -2
+        #LIDAR[LIDAR == 0] = -2
+        #LIDAR[Rx_ind] = 0
     Y=npzfile['Y']
     if '010' in filename:
         LOS=0
