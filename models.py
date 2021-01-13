@@ -142,7 +142,7 @@ def MULTIMODAL_OLD(FLATTENED,LIDAR_TYPE):
     out_coord =GaussianNoise(0.002)(layer)
     '''Concatenation'''
     concatenated = concatenate([out_lid, out_coord])
-    reg_val = 0.0001
+    reg_val = 0
     layer = Dense(600, activation='relu', kernel_regularizer=l2(reg_val), bias_regularizer=l2(reg_val))(concatenated)
     layer = Dense(600, activation='relu', kernel_regularizer=l2(reg_val), bias_regularizer=l2(reg_val))(layer)
     layer = Dense(500, activation='relu', kernel_regularizer=l2(reg_val), bias_regularizer=l2(reg_val))(layer)

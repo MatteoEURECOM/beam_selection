@@ -39,7 +39,11 @@ def reorder(data, num_rows, num_columns):
 
 '''Training Parameters'''
 BETA=[0.2,0.4,0.6,0.8,1]    #Beta loss values to test
+<<<<<<< HEAD
 CURRICULUM= True   #If True starts increases the NLOS samples percentage in the epoch accoring to the Perc array
+=======
+CURRICULUM= False   #If True starts increases the NLOS samples percentage in the epoch accoring to the Perc array
+>>>>>>> bfe6735ad48aa65f9ef3cff0522d9725fcd3e222
 SAVE_INIT=True      #Use the same weights initialization each time beta is updated
 NET_TYPE = 'MULTIMODAL'    #Type of network
 FLATTENED=True      #If True Lidar is 2D
