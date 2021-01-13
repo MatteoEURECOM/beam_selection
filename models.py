@@ -176,3 +176,40 @@ Lidar2D = Sequential([
     # Dropout(0.7),
     Dense(256, activation='softmax'),
 ])
+
+
+def MIXTURE(FLATTENED, LIDAR_TYPE):
+    if(LIDAR_TYPE=='CENTERED'):
+        if(FLATTENED):
+            input_lid = Input(shape=(67, 67, 1))
+        else:
+            input_lid = Input(shape=(67, 67, 10))
+    elif(LIDAR_TYPE=='ABSOLUTE'):
+        if(FLATTENED):
+            input_lid = Input(shape=(20, 200, 1))
+        else:
+            input_lid = Input(shape=(20, 200, 10))
+    elif(LIDAR_TYPE=='ABSOLUTE_LARGE'):
+        if(FLATTENED):
+            input_lid = Input(shape=(60, 330, 1))
+        else:
+            input_lid = Input(shape=(60, 330, 10))
+    layer = Conv2D(5, kernel_size=(5, 5), activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(input_lid)
+    layer = Conv2D(5, kernel_size=(5, 5), activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
+    layer = Conv2D(5, kernel_size=(5, 5), strides=2, activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
+    layer = Conv2D(5, kernel_size=(5, 5), activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
+    layer = Conv2D(5, kernel_size=(5, 5), strides=2, activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
+    layer = Conv2D(1, kernel_size=(3, 3), strides=(1, 2), activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
+    layer = Flatten()(layer)
+    out_lid = Dense(16, activation='relu')(layer)
+    '''GPS branch'''
+    input_coord = Input(shape=(3))
+    '''Concatenation'''
+    concatenated = concatenate([out_lid, input_coord])
+    reg_val = 0
+    layer = Dense(64, activation='relu')(concatenated)
+    layer = Dense(64, activation='relu')(layer)
+    layer = Dense(64, activation='relu')(layer)
+    predictions = Dense(256, activation='softmax')(layer)
+    architecture = Model(inputs=[input_lid, input_coord], outputs=predictions)
+    return architecture

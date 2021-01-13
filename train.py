@@ -1,5 +1,5 @@
 import numpy as np
-from models import MULTIMODAL,LIDAR,GPS,MULTIMODAL_OLD
+from models import MULTIMODAL,LIDAR,GPS,MULTIMODAL_OLD, MIXTURE
 from dataLoader import load_dataset
 import pickle
 import tensorflow as tf
@@ -39,18 +39,18 @@ def reorder(data, num_rows, num_columns):
 
 '''Training Parameters'''
 BETA=[0.8]    #Beta loss values to test
-CURRICULUM= True   #If True starts increases the NLOS samples percentage in the epoch accoring to the Perc array
+CURRICULUM= False   #If True starts increases the NLOS samples percentage in the epoch accoring to the Perc array
 SAVE_INIT=True      #Use the same weights initialization each time beta is updated
-NET_TYPE = 'GPS'    #Type of network
+NET_TYPE = 'MIXTURE'    #Type of network
 FLATTENED=True      #If True Lidar is 2D
 SUM=False       #If True uses the method lidar_to_2d_summing() instead of lidar_to_2d() in dataLoader.py to process the LIDAR
-SHUFFLE=True
+SHUFFLE=False
 LIDAR_TYPE='ABSOLUTE'   #Type of lidar images CENTERED: lidar centered at Rx, ABSOLUTE: lidar images as provided  and ABSOLUTE_LARGE: lidar images of larger size
 seed=1
 np.random.seed(seed)
 tf.random.set_seed(seed)
 batch_size = 32
-num_epochs = 15
+num_epochs = 30
 
 '''Loading Data'''
 if LIDAR_TYPE=='CENTERED':
@@ -71,7 +71,6 @@ if(SHUFFLE):
     LIDAR_tr=LIDAR_tr[ind,:,:,:][0]
     Y_tr=Y_tr[ind,:][0]
     NLOS_tr=NLOS_tr[ind][0]
-
 
 if(False):
     f, axarr = plt.subplots(3, 1)
@@ -106,10 +105,15 @@ elif(NET_TYPE=='IPC'):
     model= LIDAR(FLATTENED,LIDAR_TYPE)
 elif (NET_TYPE == 'GPS'):
     model = GPS()
+elif (NET_TYPE == 'MIXTURE'):
+    model = MIXTURE(FLATTENED, LIDAR_TYPE)
+    LIDAR_tr = LIDAR_tr * 3 - 2
+    LIDAR_val = LIDAR_val * 3 - 2
+    LIDAR_te = LIDAR_te * 3 - 2
 
 for beta in BETA:
     optim = Adam(lr=1e-3, epsilon=1e-8)
-    scheduler = lambda epoch, lr: lr if epoch < 10 else lr*tf.math.exp(-0.1)
+    scheduler = lambda epoch, lr: lr if NET_TYPE == 'MIXTURE' else lambda epoch, lr: lr if epoch < 10 else lr*tf.math.exp(-0.1)
     callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
     model.compile(loss=KDLoss(beta),optimizer=optim,metrics=[metrics.categorical_accuracy,top_5_accuracy,top_10_accuracy,top_50_accuracy])
     model.summary()
@@ -124,7 +128,7 @@ for beta in BETA:
     else:
         checkpoint = ModelCheckpoint('./saved_models/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'.h5', monitor='val_top_10_accuracy', verbose=1,  save_best_only=True, save_weights_only=True, mode='auto', save_frequency=1)
     #Training Phase
-    if(NET_TYPE=='MULTIMODAL'):
+    if(NET_TYPE=='MULTIMODAL' or NET_TYPE=='MIXTURE'):
         if(CURRICULUM):
             for ep in range(0,num_epochs):
                 ind=np.concatenate((np.random.choice(NLOSind, int((Perc[ep])*NLOSind.shape[0])),np.random.choice(LOSind, LOSind.shape[0])),axis=None)
@@ -167,7 +171,7 @@ for beta in BETA:
         model.load_weights('./saved_models/' + NET_TYPE + '_BETA_' + str(int(beta * 10))+'.h5')
 
     #Testing phase on s010
-    if(NET_TYPE=='MULTIMODAL'):
+    if(NET_TYPE=='MULTIMODAL' or NET_TYPE=='MIXTURE'):
         preds = model.predict([LIDAR_te,POS_te])
     elif(NET_TYPE=='IPC'):
         preds = model.predict([LIDAR_te])
