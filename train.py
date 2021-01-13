@@ -38,7 +38,7 @@ def reorder(data, num_rows, num_columns):
 
 
 '''Training Parameters'''
-BETA=[0.8]    #Beta loss values to test
+BETA=[0.2,0.4,0.6,0.8,1]    #Beta loss values to test
 CURRICULUM= False   #If True starts increases the NLOS samples percentage in the epoch accoring to the Perc array
 SAVE_INIT=True      #Use the same weights initialization each time beta is updated
 NET_TYPE = 'MULTIMODAL'    #Type of network
