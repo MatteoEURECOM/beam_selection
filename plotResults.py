@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 CURRICULUM=True
 Net = 'MULTIMODAL'
 BETA=[0.2,0.4,0.6,0.8,1]
-
+'''
 for beta in  BETA:
     if(CURRICULUM):
         curve_LOS, curve_NLOS = plotNLOSvsLOS('./saved_models/' + Net + '_BETA_' + str(int(beta * 10)) + 'CURRICULUM.h5', Net)
@@ -24,15 +24,21 @@ else:
     plt.savefig(Net + 'NLoS_LoS.png', dpi=150)
 
 plt.show()
-
-
+'''
+acc_max=0
+beta_max=0
 for beta in BETA:
     if (CURRICULUM):
         t = plotS010('./saved_models/PREDS_' + Net + '_BETA_' + str(int(beta * 10)) + 'CURRICULUM.csv')
     else:
         t = plotS010('./saved_models/PREDS_' + Net + '_BETA_' + str(int(beta * 10)) + '.csv')
-
+    if(acc_max<t[9]):
+        acc_max=t[9]
+        beta_max=beta
     plt.plot(range(1, 257), t,lineStyle='--', color = [1,beta,0.25*beta], label=Net+r' $\beta $='+str(beta), linewidth=1.5)
+print('s010:')
+print(beta_max)
+print(acc_max)
 plt.legend()
 plt.ylim(0.5, 1)
 plt.xlim(0, 50)
@@ -49,14 +55,20 @@ else:
 
 plt.show()
 
-
+acc_max=0
+beta_max=0
 for beta in BETA:
     if (CURRICULUM):
         curve = plots009('./saved_models/' + Net + '_BETA_' + str(int(beta * 10)) + 'CURRICULUM.h5', Net)
     else:
         curve = plots009('./saved_models/' + Net + '_BETA_' + str(int(beta * 10)) + '.h5', Net)
-
+    if (acc_max <curve[9]):
+        acc_max = curve[9]/ curve[len(curve) - 1]
+        beta_max = beta
     plt.plot(range(0, 256), curve / curve[len(curve) - 1], color = [1,beta,0.25*beta],lineStyle='--', label=Net+r' $\beta $='+str(beta), linewidth=1.5)
+print('s009:')
+print(beta_max)
+print(acc_max)
 plt.legend()
 plt.ylim(0.5, 1)
 plt.xlim(0, 50)

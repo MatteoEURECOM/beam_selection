@@ -38,14 +38,10 @@ def reorder(data, num_rows, num_columns):
 
 
 '''Training Parameters'''
-BETA=[0.2,0.4,0.6,0.8,1]    #Beta loss values to test
-<<<<<<< HEAD
+BETA=[0.8]    #Beta loss values to test
 CURRICULUM= True   #If True starts increases the NLOS samples percentage in the epoch accoring to the Perc array
-=======
-CURRICULUM= False   #If True starts increases the NLOS samples percentage in the epoch accoring to the Perc array
->>>>>>> bfe6735ad48aa65f9ef3cff0522d9725fcd3e222
 SAVE_INIT=True      #Use the same weights initialization each time beta is updated
-NET_TYPE = 'MULTIMODAL'    #Type of network
+NET_TYPE = 'GPS'    #Type of network
 FLATTENED=True      #If True Lidar is 2D
 SUM=False       #If True uses the method lidar_to_2d_summing() instead of lidar_to_2d() in dataLoader.py to process the LIDAR
 SHUFFLE=True
@@ -53,7 +49,7 @@ LIDAR_TYPE='ABSOLUTE'   #Type of lidar images CENTERED: lidar centered at Rx, AB
 seed=1
 np.random.seed(seed)
 tf.random.set_seed(seed)
-batch_size = 16
+batch_size = 32
 num_epochs = 15
 
 '''Loading Data'''
@@ -110,12 +106,14 @@ elif(NET_TYPE=='IPC'):
     model= LIDAR(FLATTENED,LIDAR_TYPE)
 elif (NET_TYPE == 'GPS'):
     model = GPS()
+
 for beta in BETA:
     optim = Adam(lr=1e-3, epsilon=1e-8)
     scheduler = lambda epoch, lr: lr if epoch < 10 else lr*tf.math.exp(-0.1)
     callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
     model.compile(loss=KDLoss(beta),optimizer=optim,metrics=[metrics.categorical_accuracy,top_5_accuracy,top_10_accuracy,top_50_accuracy])
     model.summary()
+
     if(SAVE_INIT):
         INIT_WEIGHTS=model.get_weights()
         SAVE_INIT=False
@@ -155,6 +153,7 @@ for beta in BETA:
                 hist = model.fit(POS_tr[ind,:], Y_tr[ind, :], validation_data=(POS_val, Y_val), epochs=1, batch_size=batch_size,callbacks=[checkpoint, callback])
         else:
             hist = model.fit(POS_tr, Y_tr, validation_data=(POS_val, Y_val), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])
+
     #Saving weights and history for later
     if(CURRICULUM):
         model.save_weights('./saved_models/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'FINAL_CURRICULUM.h5')
@@ -164,7 +163,7 @@ for beta in BETA:
     else:
         model.save_weights('./saved_models/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'FINAL.h5')
         with open('./saved_models/History'+NET_TYPE+'_BETA_'+str(int(beta*10)), 'wb') as file_pi:
-            pickle.dump(hist.history, file_pi)
+           pickle.dump(hist.history, file_pi)
         model.load_weights('./saved_models/' + NET_TYPE + '_BETA_' + str(int(beta * 10))+'.h5')
 
     #Testing phase on s010

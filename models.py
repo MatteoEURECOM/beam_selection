@@ -53,9 +53,10 @@ def GPS():
     '''
     GPS Neural Network
     '''
+    reg_val=0
     input_lid = Input(shape=(3))
-    layer= Dense(100, activation='relu',kernel_regularizer=l2(l2=1e-4),bias_regularizer=l2(1e-4))(input_lid)
-    layer = Dense(100, activation='relu',kernel_regularizer=l2(l2=1e-4),bias_regularizer=l2(1e-4))(layer)
+    layer= Dense(85, activation='relu',kernel_regularizer=l2(reg_val),bias_regularizer=l2(reg_val))(input_lid)
+    layer = Dense(85, activation='relu',kernel_regularizer=l2(reg_val),bias_regularizer=l2(reg_val))(layer)
     predictions =Dense(256, activation='softmax')(layer)
     architecture = Model(inputs=input_lid, outputs=predictions)
     return architecture
@@ -102,7 +103,7 @@ def MULTIMODAL(FLATTENED,LIDAR_TYPE):
     out_coord = Dense(10, activation='relu')(input_coord)
     '''Concatenation'''
     concatenated = concatenate([out_lid, out_coord])
-    reg=0
+    reg=0.001
     layer = Dense(50, activation='relu', kernel_regularizer=l2(reg), bias_regularizer=l2(reg))(concatenated)
     layer = Dense(50, activation='relu',kernel_regularizer=l2(reg),bias_regularizer=l2(reg))(layer)
     predictions= Dense(256, activation='softmax',kernel_regularizer=l2(reg),bias_regularizer=l2(reg))(layer)

@@ -10,19 +10,17 @@ import keras
 FLATTENED=True
 SUM=False
 LIDAR_TYPE='ABSOLUTE'
-'''
+
 g = tf.Graph()
 run_meta = tf.compat.v1.RunMetadata()
 with g.as_default():
-    vgg = multiModalNet()
-    vgg.summary()
+    net = GPS()
+    net.summary()
     opts = tf.compat.v1.profiler.ProfileOptionBuilder.float_operation()
     flops = tf.compat.v1.profiler.profile(g, run_meta=run_meta, cmd='op', options=opts)
     if flops is not None:
-        print('Flops should be ~',2*25*16*9)
-        print('25 x 25 x 9 would be',2*25*25*9) # ignores internal dim, repeats first
         print('TF stats gives',flops.total_float_ops)
-'''
+
 def get_flops(model):
     run_meta = tf.compat.v1.RunMetadata()
     opts = tf.compat.v1.profiler.ProfileOptionBuilder.float_operation()
