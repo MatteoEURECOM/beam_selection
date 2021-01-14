@@ -49,8 +49,8 @@ LIDAR_TYPE='ABSOLUTE'   #Type of lidar images CENTERED: lidar centered at Rx, AB
 seed=1
 np.random.seed(seed)
 tf.random.set_seed(seed)
-batch_size = 16
-num_epochs = 25
+batch_size = 32
+num_epochs = 30
 
 '''Loading Data'''
 if LIDAR_TYPE=='CENTERED':
