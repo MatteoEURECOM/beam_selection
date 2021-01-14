@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from dataLoader import load_dataset
-from models import MULTIMODAL,LIDAR,GPS,MULTIMODAL_OLD
+from models import MULTIMODAL,LIDAR,GPS,MULTIMODAL_OLD,MIXTURE
 import tensorflow as tf
 import keras
 
@@ -87,6 +87,10 @@ def plots009(saved_model,Net):
         model = GPS()
         model.load_weights(saved_model)
         preds = model.predict(POS_val)  # Get predictions
+    elif(Net == 'MIXTURE'):
+        model = MIXTURE(FLATTENED, LIDAR_TYPE)
+        model.load_weights(saved_model)
+        preds = model.predict([LIDAR_val* 3 - 2,POS_val])    # Get predictions
     preds= np.argsort(-preds, axis=1) #Descending order
     true=np.argmax(Y_val[:,:], axis=1) #Best channel
     curve=np.zeros(256)
@@ -118,6 +122,11 @@ def plotNLOSvsLOS(saved_model,Net):
         preds_gains_LOS = model.predict(LIDAR_val[LOSind, :, :,:])  # Get predictions
     elif (Net == 'GPS'):
         model= GPS()
+        model.load_weights(saved_model)
+        preds_gains_NLOS = model.predict(POS_val[NLOSind, :])  # Get predictions
+        preds_gains_LOS = model.predict(POS_val[LOSind, :])  # Get predictions
+    elif (Net == 'MIXTURE'):
+        model = MIXTURE(FLATTENED, LIDAR_TYPE)
         model.load_weights(saved_model)
         preds_gains_NLOS = model.predict(POS_val[NLOSind, :])  # Get predictions
         preds_gains_LOS = model.predict(POS_val[LOSind, :])  # Get predictions

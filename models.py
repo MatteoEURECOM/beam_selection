@@ -194,7 +194,8 @@ def MIXTURE(FLATTENED, LIDAR_TYPE):
             input_lid = Input(shape=(60, 330, 1))
         else:
             input_lid = Input(shape=(60, 330, 10))
-    layer = Conv2D(5, kernel_size=(5, 5), activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(input_lid)
+    noisy_input_lid=GaussianNoise(0.01)(input_lid)
+    layer = Conv2D(5, kernel_size=(5, 5), activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(noisy_input_lid)
     layer = Conv2D(5, kernel_size=(5, 5), activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
     layer = Conv2D(5, kernel_size=(5, 5), strides=2, activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
     layer = Conv2D(5, kernel_size=(5, 5), activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
@@ -204,8 +205,9 @@ def MIXTURE(FLATTENED, LIDAR_TYPE):
     out_lid = Dense(16, activation='relu')(layer)
     '''GPS branch'''
     input_coord = Input(shape=(3))
+    noisy_input_coord=GaussianNoise(0.002)(input_coord)
     '''Concatenation'''
-    concatenated = concatenate([out_lid, input_coord])
+    concatenated = concatenate([out_lid, noisy_input_coord])
     reg_val = 0
     layer = Dense(64, activation='relu')(concatenated)
     layer = Dense(64, activation='relu')(layer)

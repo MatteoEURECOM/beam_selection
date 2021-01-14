@@ -38,8 +38,8 @@ def reorder(data, num_rows, num_columns):
 
 
 '''Training Parameters'''
-BETA=[0.8]    #Beta loss values to test
-CURRICULUM= False   #If True starts increases the NLOS samples percentage in the epoch accoring to the Perc array
+BETA=[0.2,0.4,0.6,0.8,1]    #Beta loss values to test
+CURRICULUM= True   #If True starts increases the NLOS samples percentage in the epoch accoring to the Perc array
 SAVE_INIT=True      #Use the same weights initialization each time beta is updated
 NET_TYPE = 'MIXTURE'    #Type of network
 FLATTENED=True      #If True Lidar is 2D
@@ -49,8 +49,8 @@ LIDAR_TYPE='ABSOLUTE'   #Type of lidar images CENTERED: lidar centered at Rx, AB
 seed=1
 np.random.seed(seed)
 tf.random.set_seed(seed)
-batch_size = 32
-num_epochs = 30
+batch_size = 16
+num_epochs = 25
 
 '''Loading Data'''
 if LIDAR_TYPE=='CENTERED':

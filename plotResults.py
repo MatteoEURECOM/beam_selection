@@ -2,8 +2,8 @@ from utils import plotNLOSvsLOS,readHistory,plotS010,plots009
 import matplotlib.pyplot as plt
 
 CURRICULUM=True
-Net = 'MULTIMODAL'
-BETA=[0.2,0.4,0.6,0.8,1]
+Net = 'MIXTURE'
+BETA=[0.2,0.4,0.6]
 '''
 for beta in  BETA:
     if(CURRICULUM):
