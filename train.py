@@ -39,7 +39,7 @@ def reorder(data, num_rows, num_columns):
 
 '''Training Parameters'''
 BETA=[0.2,0.4,0.6,0.8,1]    #Beta loss values to test
-CURRICULUM= False    #If True starts increases the NLOS samples percentage in the epoch accoring to the Perc array
+CURRICULUM=True    #If True starts increases the NLOS samples percentage in the epoch accoring to the Perc array
 SAVE_INIT=True      #Use the same weights initialization each time beta is updated
 NET_TYPE = 'MIXTURE'    #Type of network
 FLATTENED=True      #If True Lidar is 2D
@@ -71,7 +71,8 @@ if(SHUFFLE):
     LIDAR_tr=LIDAR_tr[ind,:,:,:][0]
     Y_tr=Y_tr[ind,:][0]
     NLOS_tr=NLOS_tr[ind][0]
-
+print(np.sum(NLOS_val))
+print(np.sum(NLOS_tr))
 if(False):
     f, axarr = plt.subplots(3, 1)
     axarr[0].imshow(np.squeeze(np.mean(LIDAR_tr, axis=0)))
@@ -91,8 +92,8 @@ if(False):
     plt.show()
 
 if CURRICULUM :
-    num_epochs=int(num_epochs*1.5)
-    Perc=np.linspace(0,1,num_epochs)
+    num_epochs=int(num_epochs*1.25)
+    Perc=np.concatenate([np.linspace(0,1,int(num_epochs/2)),np.ones(num_epochs-int(num_epochs/2))])
     NLOSind = np.where(NLOS_tr == 0)[0]
     LOSind = np.where(NLOS_tr == 1)[0]
 
@@ -132,9 +133,7 @@ for beta in BETA:
         if(CURRICULUM):
             for ep in range(0,num_epochs):
                 ind=np.concatenate((np.random.choice(NLOSind, int((Perc[ep])*NLOSind.shape[0])),np.random.choice(LOSind, LOSind.shape[0])),axis=None)
-
-                model.fit([LIDAR_tr[ind,:,:,:],POS_tr[ind,:]], Y_tr[ind,:],validation_data=([LIDAR_val, POS_val], Y_val), epochs=1,batch_size=batch_size, callbacks=[checkpoint, callback])
-
+                np.random.shuffle(ind)
                 hist = model.fit([LIDAR_tr[ind,:,:,:],POS_tr[ind,:]], Y_tr[ind,:],validation_data=([LIDAR_val, POS_val], Y_val), epochs=1,batch_size=batch_size, callbacks=[checkpoint, callback])
 
         else:
@@ -144,8 +143,6 @@ for beta in BETA:
             for ep in range(0, num_epochs):
                 #ind = np.concatenate((np.random.choice(NLOSind, int(Perc[ep] * data_size_curr)),np.random.choice(LOSind, int((1 - Perc[ep]) * data_size_curr))), axis=None)
                 ind = np.concatenate((np.random.choice(NLOSind, int((Perc[ep]) * NLOSind.shape[0])),np.random.choice(LOSind, LOSind.shape[0])), axis=None)
-
-                model.fit(LIDAR_tr[ind, :, :, :], Y_tr[ind, :],validation_data=(LIDAR_val, Y_val), epochs=1, batch_size=batch_size,callbacks=[checkpoint, callback])
                 hist = model.fit(LIDAR_tr[ind, :, :, :], Y_tr[ind, :],validation_data=(LIDAR_val, Y_val), epochs=1, batch_size=batch_size,callbacks=[checkpoint, callback])
         else:
             hist = model.fit(LIDAR_tr, Y_tr, validation_data=(LIDAR_val, Y_val), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])
