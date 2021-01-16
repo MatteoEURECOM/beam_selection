@@ -38,12 +38,12 @@ def reorder(data, num_rows, num_columns):
 
 
 '''Training Parameters'''
-BETA=[0.2,0.4,0.6,0.8,1]    #Beta loss values to test
-CURRICULUM=True    #If True starts increases the NLOS samples percentage in the epoch accoring to the Perc array
+BETA=[0.8]    #Beta loss values to test
+CURRICULUM=True   #If True starts increases the NLOS samples percentage in the epoch accoring to the Perc array
 SAVE_INIT=True      #Use the same weights initialization each time beta is updated
 NET_TYPE = 'MIXTURE'    #Type of network
 FLATTENED=True      #If True Lidar is 2D
-SUM=False       #If True uses the method lidar_to_2d_summing() instead of lidar_to_2d() in dataLoader.py to process the LIDAR
+SUM=False     #If True uses the method lidar_to_2d_summing() instead of lidar_to_2d() in dataLoader.py to process the LIDAR
 SHUFFLE=False
 LIDAR_TYPE='ABSOLUTE'   #Type of lidar images CENTERED: lidar centered at Rx, ABSOLUTE: lidar images as provided  and ABSOLUTE_LARGE: lidar images of larger size
 seed=1
@@ -51,7 +51,8 @@ np.random.seed(seed)
 tf.random.set_seed(seed)
 batch_size = 32
 num_epochs = 30
-
+ANTICURRICULUM=True
+VANILLA=True
 '''Loading Data'''
 if LIDAR_TYPE=='CENTERED':
     POS_tr, LIDAR_tr, Y_tr, NLOS_tr = load_dataset('./data/s008_centered.npz',FLATTENED,SUM)
@@ -71,8 +72,8 @@ if(SHUFFLE):
     LIDAR_tr=LIDAR_tr[ind,:,:,:][0]
     Y_tr=Y_tr[ind,:][0]
     NLOS_tr=NLOS_tr[ind][0]
-print(np.sum(NLOS_val))
-print(np.sum(NLOS_tr))
+
+
 if(False):
     f, axarr = plt.subplots(3, 1)
     axarr[0].imshow(np.squeeze(np.mean(LIDAR_tr, axis=0)))
@@ -92,8 +93,9 @@ if(False):
     plt.show()
 
 if CURRICULUM :
-    num_epochs=int(num_epochs*1.25)
-    Perc=np.concatenate([np.linspace(0,1,int(num_epochs/2)),np.ones(num_epochs-int(num_epochs/2))])
+    #num_epochs=int(num_epochs*1.25)
+    stumps=5
+    Perc=np.linspace(0,1,stumps)
     NLOSind = np.where(NLOS_tr == 0)[0]
     LOSind = np.where(NLOS_tr == 1)[0]
 
@@ -114,7 +116,7 @@ elif (NET_TYPE == 'MIXTURE'):
 
 for beta in BETA:
     optim = Adam(lr=1e-3, epsilon=1e-8)
-    scheduler = lambda epoch, lr: lr if NET_TYPE == 'MIXTURE' else lambda epoch, lr: lr if epoch < 10 else lr*tf.math.exp(-0.1)
+    scheduler = lambda epoch, lr: lr if NET_TYPE == 'MIXTURE' else lambda epoch, lr: lr if epoch < 10 else lr
     callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
     model.compile(loss=KDLoss(beta),optimizer=optim,metrics=[metrics.categorical_accuracy,top_5_accuracy,top_10_accuracy,top_50_accuracy])
     model.summary()
@@ -131,10 +133,15 @@ for beta in BETA:
     #Training Phase
     if(NET_TYPE=='MULTIMODAL' or NET_TYPE=='MIXTURE'):
         if(CURRICULUM):
-            for ep in range(0,num_epochs):
+            for ep in range(0,stumps):
                 ind=np.concatenate((np.random.choice(NLOSind, int((Perc[ep])*NLOSind.shape[0])),np.random.choice(LOSind, LOSind.shape[0])),axis=None)
+                if(ANTICURRICULUM):
+                    ind=np.concatenate((np.random.choice(NLOSind,NLOSind.shape[0]),np.random.choice(LOSind,int(Perc[ep]*LOSind.shape[0]))),axis=None)
+                if(VANILLA):
+                    samples=LOSind.shape[0]+int(Perc[ep]*NLOSind.shape[0])
+                    ind=np.concatenate((np.random.choice(NLOSind,int(0.5*samples)),np.random.choice(LOSind,int(0.5*samples))))
                 np.random.shuffle(ind)
-                hist = model.fit([LIDAR_tr[ind,:,:,:],POS_tr[ind,:]], Y_tr[ind,:],validation_data=([LIDAR_val, POS_val], Y_val), epochs=1,batch_size=batch_size, callbacks=[checkpoint, callback])
+                hist = model.fit([LIDAR_tr[ind,:,:,:],POS_tr[ind,:]], Y_tr[ind,:],validation_data=([LIDAR_val, POS_val], Y_val), epochs=int(num_epochs/stumps),batch_size=batch_size, callbacks=[checkpoint, callback])
 
         else:
             hist = model.fit([LIDAR_tr,POS_tr], Y_tr, validation_data=([LIDAR_val,POS_val], Y_val), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])
