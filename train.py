@@ -38,15 +38,9 @@ def reorder(data, num_rows, num_columns):
 
 
 '''Training Parameters'''
-<<<<<<< HEAD
 MC_REPS=5
 BETA=[0.8]    #Beta loss values to test
 TEST_S010=False
-=======
-BETA=[0.8]    #Beta loss values to test
-CURRICULUM=True   #If True starts increases the NLOS samples percentage in the epoch accoring to the Perc array
-SAVE_INIT=True      #Use the same weights initialization each time beta is updated
->>>>>>> 3c31baef3a7d94b5c1d40dea1a74779f652392f2
 NET_TYPE = 'MIXTURE'    #Type of network
 FLATTENED=True      #If True Lidar is 2D
 SUM=False     #If True uses the method lidar_to_2d_summing() instead of lidar_to_2d() in dataLoader.py to process the LIDAR
@@ -62,8 +56,7 @@ np.random.seed(seed)
 tf.random.set_seed(seed)
 batch_size = 32
 num_epochs = 30
-ANTICURRICULUM=True
-VANILLA=True
+
 '''Loading Data'''
 if LIDAR_TYPE=='CENTERED':
     POS_tr, LIDAR_tr, Y_tr, NLOS_tr = load_dataset('./data/s008_centered.npz',FLATTENED,SUM)
@@ -83,32 +76,7 @@ if(SHUFFLE):
     LIDAR_tr=LIDAR_tr[ind,:,:,:][0]
     Y_tr=Y_tr[ind,:][0]
     NLOS_tr=NLOS_tr[ind][0]
-<<<<<<< HEAD
 if TRAIN_TYPE in TRAIN_TYPES:
-=======
-
-
-if(False):
-    f, axarr = plt.subplots(3, 1)
-    axarr[0].imshow(np.squeeze(np.mean(LIDAR_tr, axis=0)))
-    axarr[1].imshow(np.squeeze(np.mean(LIDAR_val, axis=0)))
-    axarr[2].imshow(np.squeeze(np.mean(LIDAR_te, axis=0)))
-    plt.show()
-    LIDAR_tr[LIDAR_tr < 0.6] = 0
-    LIDAR_tr[LIDAR_tr > 0.8] = 0
-    LIDAR_val[LIDAR_val < 0.6] = 0
-    LIDAR_val[LIDAR_val > 0.8] = 0
-    LIDAR_te[LIDAR_te < 0.6] = 0
-    LIDAR_te[LIDAR_te > 0.8] = 0
-    f, axarr = plt.subplots(3, 1)
-    axarr[0].imshow(np.squeeze(np.mean(LIDAR_tr, axis=0)))
-    axarr[1].imshow(np.squeeze(np.mean(LIDAR_val, axis=0)))
-    axarr[2].imshow(np.squeeze(np.mean(LIDAR_te, axis=0)))
-    plt.show()
-
-if CURRICULUM :
-    #num_epochs=int(num_epochs*1.25)
->>>>>>> 3c31baef3a7d94b5c1d40dea1a74779f652392f2
     stumps=5
     Perc=np.linspace(0,1,stumps)
     NLOSind = np.where(NLOS_tr == 0)[0]
@@ -117,16 +85,11 @@ if CURRICULUM :
 
 for beta in BETA:
     optim = Adam(lr=1e-3, epsilon=1e-8)
-<<<<<<< HEAD
     scheduler = lambda epoch, lr: lr
-=======
-    scheduler = lambda epoch, lr: lr if NET_TYPE == 'MIXTURE' else lambda epoch, lr: lr if epoch < 10 else lr
->>>>>>> 3c31baef3a7d94b5c1d40dea1a74779f652392f2
     callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
     checkpoint = ModelCheckpoint('./saved_models/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE+'.h5', monitor='val_top_10_accuracy', verbose=1,  save_best_only=True, save_weights_only=True, mode='auto', save_frequency=1)
     #Training Phase
     if(NET_TYPE=='MULTIMODAL' or NET_TYPE=='MIXTURE'):
-<<<<<<< HEAD
         for rep in range(0,MC_REPS):
             if(NET_TYPE=='MULTIMODAL'):
                 model= MULTIMODAL(FLATTENED,LIDAR_TYPE)
@@ -140,21 +103,21 @@ for beta in BETA:
             if(rep==0):
                 model.summary()
             if TRAIN_TYPE in TRAIN_TYPES:
-                    for ep in range(0,stumps):
-                        if(TRAIN_TYPE=='CURR'):
-                            ind=np.concatenate((np.random.choice(NLOSind, int((Perc[ep])*NLOSind.shape[0])),np.random.choice(LOSind, LOSind.shape[0])),axis=None)
-                        elif(TRAIN_TYPE=='ANTI'):
-                            ind=np.concatenate((np.random.choice(NLOSind,NLOSind.shape[0]),np.random.choice(LOSind,int(Perc[ep]*LOSind.shape[0]))),axis=None)
-                        elif(TRAIN_TYPE=='VANILLA'):
-                            samples=LOSind.shape[0]+int(Perc[ep]*NLOSind.shape[0])
-                            ind=np.concatenate((np.random.choice(NLOSind,int(0.5*samples)),np.random.choice(LOSind,int(0.5*samples))))
-                        np.random.shuffle(ind)
-                        hist = model.fit([LIDAR_tr[ind,:,:,:],POS_tr[ind,:]], Y_tr[ind,:],validation_data=([LIDAR_val, POS_val], Y_val), epochs=int(num_epochs/stumps),batch_size=batch_size, callbacks=[checkpoint, callback])
-                        if ep==0 and rep==0:
-                            total_hist=hist
-                        else:
-                            for key in hist.history.keys():
-                                total_hist.history[key].extend(hist.history[key])
+                for ep in range(0,stumps):
+                    if(TRAIN_TYPE=='CURR'):
+                        ind=np.concatenate((np.random.choice(NLOSind, int((Perc[ep])*NLOSind.shape[0])),np.random.choice(LOSind, LOSind.shape[0])),axis=None)
+                    elif(TRAIN_TYPE=='ANTI'):
+                        ind=np.concatenate((np.random.choice(NLOSind,NLOSind.shape[0]),np.random.choice(LOSind,int(Perc[ep]*LOSind.shape[0]))),axis=None)
+                    elif(TRAIN_TYPE=='VANILLA'):
+                        samples=LOSind.shape[0]+int(Perc[ep]*NLOSind.shape[0])
+                        ind=np.concatenate((np.random.choice(NLOSind,int(0.5*samples)),np.random.choice(LOSind,int(0.5*samples))))
+                    np.random.shuffle(ind)
+                    hist = model.fit([LIDAR_tr[ind,:,:,:],POS_tr[ind,:]], Y_tr[ind,:],validation_data=([LIDAR_val, POS_val], Y_val), epochs=int(num_epochs/stumps),batch_size=batch_size, callbacks=[checkpoint, callback])
+                    if ep==0 and rep==0:
+                        total_hist=hist
+                    else:
+                        for key in hist.history.keys():
+                            total_hist.history[key].extend(hist.history[key])
             else:
                 hist = model.fit([LIDAR_tr,POS_tr], Y_tr, validation_data=([LIDAR_val,POS_val], Y_val), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])
                 if rep==0:
@@ -162,21 +125,6 @@ for beta in BETA:
                 else:
                     for key in hist.history.keys():
                         total_hist.history[key].extend(hist.history[key])
-=======
-        if(CURRICULUM):
-            for ep in range(0,stumps):
-                ind=np.concatenate((np.random.choice(NLOSind, int((Perc[ep])*NLOSind.shape[0])),np.random.choice(LOSind, LOSind.shape[0])),axis=None)
-                if(ANTICURRICULUM):
-                    ind=np.concatenate((np.random.choice(NLOSind,NLOSind.shape[0]),np.random.choice(LOSind,int(Perc[ep]*LOSind.shape[0]))),axis=None)
-                if(VANILLA):
-                    samples=LOSind.shape[0]+int(Perc[ep]*NLOSind.shape[0])
-                    ind=np.concatenate((np.random.choice(NLOSind,int(0.5*samples)),np.random.choice(LOSind,int(0.5*samples))))
-                np.random.shuffle(ind)
-                hist = model.fit([LIDAR_tr[ind,:,:,:],POS_tr[ind,:]], Y_tr[ind,:],validation_data=([LIDAR_val, POS_val], Y_val), epochs=int(num_epochs/stumps),batch_size=batch_size, callbacks=[checkpoint, callback])
-
-        else:
-            hist = model.fit([LIDAR_tr,POS_tr], Y_tr, validation_data=([LIDAR_val,POS_val], Y_val), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])
->>>>>>> 3c31baef3a7d94b5c1d40dea1a74779f652392f2
     elif(NET_TYPE=='IPC'):
         for rep in range(0,MC_REPS):
             model= LIDAR(FLATTENED,LIDAR_TYPE)
@@ -238,7 +186,7 @@ for beta in BETA:
     '''Saving weights and history for later'''
     model.save_weights('./saved_models/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_FINAL_'+TRAIN_TYPE+'.h5')
     with open('./saved_models/History'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE, 'wb') as file_pi:
-     pickle.dump(total_hist.history, file_pi)
+        pickle.dump(total_hist.history, file_pi)
     model.load_weights('./saved_models/' + NET_TYPE + '_BETA_' + str(int(beta * 10))+'_'+TRAIN_TYPE+'.h5')
     '''Testing on sS010'''
     if(TEST_S010):
