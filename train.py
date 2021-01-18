@@ -41,7 +41,11 @@ def reorder(data, num_rows, num_columns):
 MC_REPS=5
 BETA=[0.8]    #Beta loss values to test
 TEST_S010=False
+<<<<<<< HEAD
 NET_TYPE = 'NON_LOCAL_MIXTURE'    #Type of network
+=======
+NET_TYPE = 'MIXTURE'    #Type of network
+>>>>>>> 5ed1b8c6a122cddf4691492b5a2d007aa34128b9
 FLATTENED=True      #If True Lidar is 2D
 SUM=False     #If True uses the method lidar_to_2d_summing() instead of lidar_to_2d() in dataLoader.py to process the LIDAR
 SHUFFLE=False
@@ -89,12 +93,19 @@ for beta in BETA:
     callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
     checkpoint = ModelCheckpoint('./saved_models/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE+'.h5', monitor='val_top_10_accuracy', verbose=1,  save_best_only=True, save_weights_only=True, mode='auto', save_frequency=1)
     #Training Phase
+<<<<<<< HEAD
     if(NET_TYPE=='MULTIMODAL' or NET_TYPE=='MIXTURE' or NET_TYPE == "NON_LOCAL_MIXTURE"):
         for rep in range(0,MC_REPS):
             if(NET_TYPE=='MULTIMODAL'):
                 model= MULTIMODAL(FLATTENED,LIDAR_TYPE)
             elif (NET_TYPE == "NON_LOCAL_MIXTURE"):
                 model = NON_LOCAL_MIXTURE(FLATTENED, LIDAR_TYPE)
+=======
+    if(NET_TYPE=='MULTIMODAL' or NET_TYPE=='MIXTURE'):
+        for rep in range(0,MC_REPS):
+            if(NET_TYPE=='MULTIMODAL'):
+                model= MULTIMODAL(FLATTENED,LIDAR_TYPE)
+>>>>>>> 5ed1b8c6a122cddf4691492b5a2d007aa34128b9
             elif (NET_TYPE == 'MIXTURE'):
                 model = MIXTURE(FLATTENED, LIDAR_TYPE)
                 '''Mixture seems to work well on unnormalized'''
