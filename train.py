@@ -46,8 +46,8 @@ FLATTENED=True      #If True Lidar is 2D
 SUM=False     #If True uses the method lidar_to_2d_summing() instead of lidar_to_2d() in dataLoader.py to process the LIDAR
 SHUFFLE=False
 LIDAR_TYPE='ABSOLUTE'   #Type of lidar images CENTERED: lidar centered at Rx, ABSOLUTE: lidar images as provided  and ABSOLUTE_LARGE: lidar images of larger size
-TRAIN_TYPES=['CURR','ANTI','VANILLA']
-TRAIN_TYPE='CURR'       #Leave empty to perform normal training over the entire dataset.
+TRAIN_TYPES=['CURR','ANTI','VANILLA','ONLY_LOS','ONLY_NLOS']
+TRAIN_TYPE='ONLY_NLOS'       #Leave empty to perform normal training over the entire dataset.
 if TRAIN_TYPE not in TRAIN_TYPES:
     print('Vanilla training over the entire dataset')
     TRAIN_TYPE=''
@@ -96,9 +96,10 @@ for beta in BETA:
             elif (NET_TYPE == 'MIXTURE'):
                 model = MIXTURE(FLATTENED, LIDAR_TYPE)
                 '''Mixture seems to work well on unnormalized'''
-                LIDAR_tr = LIDAR_tr * 3 - 2
-                LIDAR_val = LIDAR_val * 3 - 2
-                LIDAR_te = LIDAR_te * 3 - 2
+                if(rep==0):
+                    LIDAR_tr = LIDAR_tr * 3 - 2
+                    LIDAR_val = LIDAR_val * 3 - 2
+                    LIDAR_te = LIDAR_te * 3 - 2
             model.compile(loss=KDLoss(beta),optimizer=optim,metrics=[metrics.categorical_accuracy,top_5_accuracy,top_10_accuracy,top_50_accuracy])
             if(rep==0):
                 model.summary()
@@ -111,6 +112,10 @@ for beta in BETA:
                     elif(TRAIN_TYPE=='VANILLA'):
                         samples=LOSind.shape[0]+int(Perc[ep]*NLOSind.shape[0])
                         ind=np.concatenate((np.random.choice(NLOSind,int(0.5*samples)),np.random.choice(LOSind,int(0.5*samples))))
+                    elif(TRAIN_TYPE=='ONLY_NLOS'):
+                        ind=NLOSind
+                    elif(TRAIN_TYPE=='ONLY_LOS'):
+                        ind=LOSind
                     np.random.shuffle(ind)
                     hist = model.fit([LIDAR_tr[ind,:,:,:],POS_tr[ind,:]], Y_tr[ind,:],validation_data=([LIDAR_val, POS_val], Y_val), epochs=int(num_epochs/stumps),batch_size=batch_size, callbacks=[checkpoint, callback])
                     if ep==0 and rep==0:
