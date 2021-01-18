@@ -1,5 +1,5 @@
 import numpy as np
-from models import MULTIMODAL,LIDAR,GPS,MULTIMODAL_OLD, MIXTURE
+from models import MULTIMODAL,LIDAR,GPS,MULTIMODAL_OLD, MIXTURE,NON_LOCAL_MIXTURE
 from dataLoader import load_dataset
 import pickle
 import tensorflow as tf
@@ -41,13 +41,13 @@ def reorder(data, num_rows, num_columns):
 MC_REPS=5
 BETA=[0.8]    #Beta loss values to test
 TEST_S010=False
-NET_TYPE = 'MIXTURE'    #Type of network
+NET_TYPE = 'NON_LOCAL_MIXTURE'    #Type of network
 FLATTENED=True      #If True Lidar is 2D
 SUM=False     #If True uses the method lidar_to_2d_summing() instead of lidar_to_2d() in dataLoader.py to process the LIDAR
 SHUFFLE=False
 LIDAR_TYPE='ABSOLUTE'   #Type of lidar images CENTERED: lidar centered at Rx, ABSOLUTE: lidar images as provided  and ABSOLUTE_LARGE: lidar images of larger size
-TRAIN_TYPES=['CURR','ANTI','VANILLA']
-TRAIN_TYPE='CURR'       #Leave empty to perform normal training over the entire dataset.
+TRAIN_TYPES=['CURR','ANTI','VANILLA','ONLY_LOS','ONLY_NLOS']
+TRAIN_TYPE='ONLY_NLOS'       #Leave empty to perform normal training over the entire dataset.
 if TRAIN_TYPE not in TRAIN_TYPES:
     print('Vanilla training over the entire dataset')
     TRAIN_TYPE=''
@@ -89,16 +89,19 @@ for beta in BETA:
     callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
     checkpoint = ModelCheckpoint('./saved_models/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE+'.h5', monitor='val_top_10_accuracy', verbose=1,  save_best_only=True, save_weights_only=True, mode='auto', save_frequency=1)
     #Training Phase
-    if(NET_TYPE=='MULTIMODAL' or NET_TYPE=='MIXTURE'):
+    if(NET_TYPE=='MULTIMODAL' or NET_TYPE=='MIXTURE' or NET_TYPE == "NON_LOCAL_MIXTURE"):
         for rep in range(0,MC_REPS):
             if(NET_TYPE=='MULTIMODAL'):
                 model= MULTIMODAL(FLATTENED,LIDAR_TYPE)
+            elif (NET_TYPE == "NON_LOCAL_MIXTURE"):
+                model = NON_LOCAL_MIXTURE(FLATTENED, LIDAR_TYPE)
             elif (NET_TYPE == 'MIXTURE'):
                 model = MIXTURE(FLATTENED, LIDAR_TYPE)
                 '''Mixture seems to work well on unnormalized'''
-                LIDAR_tr = LIDAR_tr * 3 - 2
-                LIDAR_val = LIDAR_val * 3 - 2
-                LIDAR_te = LIDAR_te * 3 - 2
+                if(rep==0):
+                    LIDAR_tr = LIDAR_tr * 3 - 2
+                    LIDAR_val = LIDAR_val * 3 - 2
+                    LIDAR_te = LIDAR_te * 3 - 2
             model.compile(loss=KDLoss(beta),optimizer=optim,metrics=[metrics.categorical_accuracy,top_5_accuracy,top_10_accuracy,top_50_accuracy])
             if(rep==0):
                 model.summary()
@@ -111,6 +114,10 @@ for beta in BETA:
                     elif(TRAIN_TYPE=='VANILLA'):
                         samples=LOSind.shape[0]+int(Perc[ep]*NLOSind.shape[0])
                         ind=np.concatenate((np.random.choice(NLOSind,int(0.5*samples)),np.random.choice(LOSind,int(0.5*samples))))
+                    elif(TRAIN_TYPE=='ONLY_NLOS'):
+                        ind=NLOSind
+                    elif(TRAIN_TYPE=='ONLY_LOS'):
+                        ind=LOSind
                     np.random.shuffle(ind)
                     hist = model.fit([LIDAR_tr[ind,:,:,:],POS_tr[ind,:]], Y_tr[ind,:],validation_data=([LIDAR_val, POS_val], Y_val), epochs=int(num_epochs/stumps),batch_size=batch_size, callbacks=[checkpoint, callback])
                     if ep==0 and rep==0:
