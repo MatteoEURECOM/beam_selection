@@ -9,17 +9,6 @@ import keras
 
 FLATTENED=True
 SUM=False
-LIDAR_TYPE='ABSOLUTE'
-
-g = tf.Graph()
-run_meta = tf.compat.v1.RunMetadata()
-with g.as_default():
-    net = NON_LOCAL_MIXTURE(FLATTENED, LIDAR_TYPE)
-    net.summary()
-    opts = tf.compat.v1.profiler.ProfileOptionBuilder.float_operation()
-    flops = tf.compat.v1.profiler.profile(g, run_meta=run_meta, cmd='op', options=opts)
-    if flops is not None:
-        print('TF stats gives',flops.total_float_ops)
 
 def get_flops(model):
     run_meta = tf.compat.v1.RunMetadata()
@@ -67,13 +56,61 @@ def readHistory(path):
     plt.show()
     return
 
-def plots009(saved_model,Net):
+
+def plotNLOSvsLOS(saved_model,Net,LIDAR_TYPE='ABSOLUTE'):
     ### Plot Validation Accuracy for LoS and NLoS channels
     #NLOS
     if LIDAR_TYPE=='CENTERED':
         POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_centered.npz',FLATTENED,SUM)
     elif LIDAR_TYPE=='ABSOLUTE':
         POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_original_labels.npz',FLATTENED,SUM)
+        POS_val=POS_val[:,0:2]
+    elif LIDAR_TYPE=='ABSOLUTE_LARGE':
+        POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_large.npz',FLATTENED,SUM)
+    NLOSind = np.where(NLOS_val == 0)[0]  # Get the NLoS users
+    LOSind = np.where(NLOS_val== 1)[0]    # Get the LoS users
+    if (Net == 'MULTIMODAL'):
+        model= MULTIMODAL(FLATTENED,LIDAR_TYPE)
+        model.load_weights(saved_model)
+        preds_gains_NLOS = model.predict([LIDAR_val[NLOSind, :, :,:],POS_val[NLOSind,:]])  # Get predictions
+        preds_gains_LOS = model.predict([LIDAR_val[LOSind, :, :, :],POS_val[LOSind, :]])  # Get predictions
+    elif (Net == 'IPC'):
+        model= LIDAR(FLATTENED,LIDAR_TYPE)
+        model.load_weights(saved_model)
+        preds_gains_NLOS = model.predict(LIDAR_val[NLOSind, :, :,:])  # Get predictions
+        preds_gains_LOS = model.predict(LIDAR_val[LOSind, :, :,:])  # Get predictions
+    elif (Net == 'GPS'):
+        model= GPS()
+        model.load_weights(saved_model)
+        preds_gains_NLOS = model.predict(POS_val[NLOSind, :])  # Get predictions
+        preds_gains_LOS = model.predict(POS_val[LOSind, :])  # Get predictions
+    elif (Net == 'MIXTURE'):
+        model = MIXTURE(FLATTENED, LIDAR_TYPE)
+        model.load_weights(saved_model)
+        preds_gains_NLOS =  model.predict([LIDAR_val[NLOSind, :,:,:]* 3 - 2,POS_val[NLOSind, :]])  # Get predictions
+        preds_gains_LOS =  model.predict([LIDAR_val[LOSind, :,:,:]* 3 - 2,POS_val[LOSind, :]])  # Get predictions
+    pred_NLOS= np.argsort(-preds_gains_NLOS, axis=1) #Descending order
+    true_NLOS=np.argmax(Y_val[NLOSind,:], axis=1) #Best channel
+    curve_NLOS=np.zeros(256)
+    for i in range(0,len(pred_NLOS)):
+        curve_NLOS[np.where(pred_NLOS[i,:] == true_NLOS[i])]=curve_NLOS[np.where(pred_NLOS[i,:] == true_NLOS[i])]+1
+    curve_NLOS=np.cumsum(curve_NLOS)
+    pred_LOS= np.argsort(-preds_gains_LOS, axis=1) #Descending order
+    true_LOS=np.argmax(Y_val[LOSind,:], axis=1) #Best channel
+    curve_LOS=np.zeros(256)
+    for i in range(0,len(pred_LOS)):
+        curve_LOS[np.where(pred_LOS[i,:] == true_LOS[i])]=curve_LOS[np.where(pred_LOS[i,:] == true_LOS[i])]+1
+    curve_LOS=np.cumsum(curve_LOS)
+    return curve_LOS,curve_NLOS
+
+def plots009(saved_model,Net,LIDAR_TYPE='ABSOLUTE',EMBEEDING='embedded',intermediate_dim=1):
+    ### Plot Validation Accuracy for LoS and NLoS channels
+    #NLOS
+    if LIDAR_TYPE=='CENTERED':
+        POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_centered.npz',FLATTENED,SUM)
+    elif LIDAR_TYPE=='ABSOLUTE':
+        POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_original_labels.npz',FLATTENED,SUM)
+        POS_val=POS_val[:,0:2]
     elif LIDAR_TYPE=='ABSOLUTE_LARGE':
         POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_large.npz',FLATTENED,SUM)
     if (Net == 'MULTIMODAL'):
@@ -97,7 +134,7 @@ def plots009(saved_model,Net):
         model.load_weights(saved_model)
         preds = model.predict([LIDAR_val* 3 - 2,POS_val])    # Get predictions
     elif(Net == 'NON_LOCAL_MIXTURE'):
-        model = NON_LOCAL_MIXTURE(FLATTENED, LIDAR_TYPE)
+        model = NON_LOCAL_MIXTURE(FLATTENED, LIDAR_TYPE,EMBEEDING,intermediate_dim)
         model.load_weights(saved_model)
         preds = model.predict([LIDAR_val* 3 - 2,POS_val])    # Get predictions
     preds= np.argsort(-preds, axis=1) #Descending order
@@ -108,72 +145,15 @@ def plots009(saved_model,Net):
     curve=np.cumsum(curve)
     return curve
 
-def plotNLOSvsLOS(saved_model,Net):
-    ### Plot Validation Accuracy for LoS and NLoS channels
-    #NLOS
-    if LIDAR_TYPE=='CENTERED':
-        POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_centered.npz',FLATTENED,SUM)
-    elif LIDAR_TYPE=='ABSOLUTE':
-        POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_original_labels.npz',FLATTENED,SUM)
-    elif LIDAR_TYPE=='ABSOLUTE_LARGE':
-        POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_large.npz',FLATTENED,SUM)
-    NLOSind = np.where(NLOS_val == 0)[0]  # Get the NLoS users
-    LOSind = np.where(NLOS_val== 1)[0]    # Get the LoS users
-    if (Net == 'MULTIMODAL'):
-        model= MULTIMODAL(FLATTENED,LIDAR_TYPE)
-        model.load_weights(saved_model)
-        preds_gains_NLOS = model.predict([LIDAR_val[NLOSind, :, :,:],POS_val[NLOSind,:]])  # Get predictions
-        preds_gains_LOS = model.predict([LIDAR_val[LOSind, :, :, :],POS_val[LOSind, :]])  # Get predictions
-    elif (Net == 'IPC'):
-        model= LIDAR(FLATTENED,LIDAR_TYPE)
-        model.load_weights(saved_model)
-        preds_gains_NLOS = model.predict(LIDAR_val[NLOSind, :, :,:])  # Get predictions
-        preds_gains_LOS = model.predict(LIDAR_val[LOSind, :, :,:])  # Get predictions
-    elif (Net == 'GPS'):
-        model= GPS()
-        model.load_weights(saved_model)
-        preds_gains_NLOS = model.predict(POS_val[NLOSind, :])  # Get predictions
-        preds_gains_LOS = model.predict(POS_val[LOSind, :])  # Get predictions
-    elif (Net == 'MIXTURE'):
-        model = MIXTURE(FLATTENED, LIDAR_TYPE)
-        model.load_weights(saved_model)
-        preds_gains_NLOS = model.predict(POS_val[NLOSind, :])  # Get predictions
-        preds_gains_LOS = model.predict(POS_val[LOSind, :])  # Get predictions
-    pred_NLOS= np.argsort(-preds_gains_NLOS, axis=1) #Descending order
-    true_NLOS=np.argmax(Y_val[NLOSind,:], axis=1) #Best channel
-    curve_NLOS=np.zeros(256)
-    for i in range(0,len(pred_NLOS)):
-        curve_NLOS[np.where(pred_NLOS[i,:] == true_NLOS[i])]=curve_NLOS[np.where(pred_NLOS[i,:] == true_NLOS[i])]+1
-    curve_NLOS=np.cumsum(curve_NLOS)
-    pred_LOS= np.argsort(-preds_gains_LOS, axis=1) #Descending order
-    true_LOS=np.argmax(Y_val[LOSind,:], axis=1) #Best channel
-    curve_LOS=np.zeros(256)
-    for i in range(0,len(pred_LOS)):
-        curve_LOS[np.where(pred_LOS[i,:] == true_LOS[i])]=curve_LOS[np.where(pred_LOS[i,:] == true_LOS[i])]+1
-    curve_LOS=np.cumsum(curve_LOS)
-    return curve_LOS,curve_NLOS
 
-
-
-
-def plotS010(preds_path):
-    labels = pd.read_csv('./data/beam_test_label_columnsfirst.csv', header=None)
-    labels = labels.values
-    pred = pd.read_csv(preds_path, header=None)
-    pred = pred.values
-    curve_NLOS = np.zeros(256)
-    for i in range(labels.shape[0]):
-        curve_NLOS[np.where(pred[i, :] == labels[i])] += 1
-    curve_NLOS = np.cumsum(curve_NLOS)
-    return curve_NLOS / curve_NLOS[len(curve_NLOS) - 1]
-
-def plots010(saved_model,Net):
+def plots010(saved_model,Net,LIDAR_TYPE='ABSOLUTE',EMBEEDING='embedded',intermediate_dim=1):
     ### Plot Validation Accuracy for LoS and NLoS channels
     #NLOS
     if LIDAR_TYPE=='CENTERED':
         POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s010_centered.npz',FLATTENED,SUM)
     elif LIDAR_TYPE=='ABSOLUTE':
         POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s010_original_labels.npz',FLATTENED,SUM)
+        POS_val=POS_val[:,0:2]
     elif LIDAR_TYPE=='ABSOLUTE_LARGE':
         POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s010_large.npz',FLATTENED,SUM)
     if (Net == 'MULTIMODAL'):
@@ -197,7 +177,7 @@ def plots010(saved_model,Net):
         model.load_weights(saved_model)
         preds = model.predict([LIDAR_val* 3 - 2,POS_val])    # Get predictions
     elif(Net == 'NON_LOCAL_MIXTURE'):
-        model = NON_LOCAL_MIXTURE(FLATTENED, LIDAR_TYPE)
+        model = NON_LOCAL_MIXTURE(FLATTENED, LIDAR_TYPE,EMBEEDING,intermediate_dim)
         model.load_weights(saved_model)
         preds = model.predict([LIDAR_val* 3 - 2,POS_val])    # Get predictions
     preds= np.argsort(-preds, axis=1) #Descending order
@@ -306,10 +286,6 @@ def finalMCAvg(path,reps):
     t50 = history['val_top_50_accuracy']
     t50=np.reshape(t50,(-1,max_epoch))
 
-
-
-
-
     val_acc_mean=np.mean(val_acc,axis=0)[-1]
     val_acc_std=np.sqrt(np.mean((val_acc-np.mean(val_acc,axis=0))**2,axis=0))[-1]
 
@@ -322,99 +298,3 @@ def finalMCAvg(path,reps):
     return val_acc_mean,val_acc_std,t5_mean,t5_std,t10_mean,t10_std
 
 
-
-
-val_acc_mean,val_acc_std,t5_mean,t5_std,t10_mean,t10_std=finalMCAvg('saved_models/HistoryMULTIMODAL_OLD_BETA_8_CURR',5)
-plt.errorbar([1.2,2.2,3.2], [val_acc_mean,t5_mean,t10_mean], [val_acc_std,t5_std,t10_std], label='Multimodal Old',linestyle='None', marker='.',capsize=2,color="salmon")
-val_acc_mean,val_acc_std,t5_mean,t5_std,t10_mean,t10_std=finalMCAvg('saved_models/HistoryNON_LOCAL_MIXTURE_BETA_8_CURR',5)
-plt.errorbar([1,2,3], [val_acc_mean,t5_mean,t10_mean], [val_acc_std,t5_std,t10_std], label='Non Local Mixture',linestyle='None', marker='.',capsize=2,color="lightsteelblue")
-'''
-val_acc_mean,val_acc_std,t5_mean,t5_std,t10_mean,t10_std=finalMCAvg('saved_models/HistoryMIXTURE_BETA_8_ONLY_LOS',5)
-plt.errorbar([1,2,3], [val_acc_mean,t5_mean,t10_mean], [val_acc_std,t5_std,t10_std], label='Only LOS',linestyle='None', marker='.',capsize=2,color="darkgray")
-val_acc_mean,val_acc_std,t5_mean,t5_std,t10_mean,t10_std=finalMCAvg('saved_models/HistoryMIXTURE_BETA_8_ONLY_NLOS',5)
-plt.errorbar([1.1,2.1,3.1], [val_acc_mean,t5_mean,t10_mean], [val_acc_std,t5_std,t10_std], label='Only NLOS',linestyle='None', marker='.',capsize=2,color="khaki")
-val_acc_mean,val_acc_std,t5_mean,t5_std,t10_mean,t10_std=finalMCAvg('saved_models/HistoryMIXTURE_BETA_8_ANTI',5)
-plt.errorbar([1.2,2.2,3.2], [val_acc_mean,t5_mean,t10_mean], [val_acc_std,t5_std,t10_std], label='Anti-curriculum',linestyle='None', marker='.',capsize=2,color="salmon")
-val_acc_mean,val_acc_std,t5_mean,t5_std,t10_mean,t10_std=finalMCAvg('saved_models/HistoryMIXTURE_BETA_8_VANILLA',5)
-plt.errorbar([1.3,2.3,3.3], [val_acc_mean,t5_mean,t10_mean], [val_acc_std,t5_std,t10_std],  label='Vanilla',linestyle='None', marker='.',capsize=2,color="lightsteelblue")
-val_acc_mean,val_acc_std,t5_mean,t5_std,t10_mean,t10_std=finalMCAvg('saved_models/HistoryMIXTURE_BETA_8_CURR',5)
-'''
-plt.errorbar([1.4,2.4,3.4], [val_acc_mean,t5_mean,t10_mean], [val_acc_std,t5_std,t10_std],label='Curriculum', linestyle='None', marker='.',capsize=2,color="mediumseagreen")
-axes = plt.gca()
-axes.set_yticks(np.arange(0.3, 1, 0.05))
-axes.set_yticks(np.arange(0.3, 1, 0.01), minor=True)
-axes.set_xticks([1.2,2.2,3.2])
-axes.set_xticklabels(['Top-1','Top-5','Top-10'])
-axes.grid(which='minor', alpha=0.2)
-axes.grid(which='major', alpha=0.5)
-plt.legend()
-plt.savefig('METRICS_CURR_NON_LOCAL.png', dpi=150)
-plt.clf()
-
-curve = plots009('saved_models/MULTIMODAL_OLD_BETA_8_CURR.h5', 'MULTIMODAL_OLD')
-curve=curve/ curve[len(curve) - 1]
-plt.plot(range(0, 256), curve, label='Multimodal Old',linestyle='--',color="salmon")
-
-curve = plots009('saved_models/NON_LOCAL_MIXTURE_BETA_8_CURR.h5', 'NON_LOCAL_MIXTURE')
-curve=curve/ curve[len(curve) - 1]
-plt.plot(range(0, 256), curve, label='Non Local Mixture',linestyle='--',color="lightsteelblue")
-'''
-curve = plots009('saved_models/MIXTURE_BETA_8_ONLY_LOS.h5', 'MIXTURE')
-curve=curve/ curve[len(curve) - 1]
-plt.plot(range(0, 256), curve, label='Only LOS',linestyle='--',color="darkgray")
-curve = plots009('saved_models/MIXTURE_BETA_8_ONLY_NLOS.h5', 'MIXTURE')
-curve=curve/ curve[len(curve) - 1]
-plt.plot(range(0, 256), curve, label='Only NLOS',linestyle='--',color="khaki")
-curve = plots009('saved_models/MIXTURE_BETA_8_ANTI.h5', 'MIXTURE')
-curve=curve/ curve[len(curve) - 1]
-plt.plot(range(0, 256), curve, label='Anti-Curriculum',linestyle='--',color="lightsteelblue")
-curve = plots009('saved_models/MIXTURE_BETA_8_VANILLA.h5','MIXTURE')
-curve=curve/ curve[len(curve) - 1]
-plt.plot(range(0, 256), curve, label='Vanilla',linestyle='--',color="mediumseagreen")
-'''
-curve = plots009('saved_models/MIXTURE_BETA_8_CURR.h5', 'MIXTURE')
-curve=curve/ curve[len(curve) - 1]
-plt.plot(range(0, 256), curve, label='Curriculum',linestyle='--',color="mediumseagreen")
-plt.legend()
-plt.ylim(0.5, 1)
-plt.xlim(0, 50)
-plt.xlabel('K')
-plt.title(' Top-K on s009')
-plt.ylabel('top-K')
-plt.grid()
-plt.savefig('s009_CURR_NON_LOCAL.png', dpi=150)
-plt.clf()
-
-
-curve = plots010('saved_models/MULTIMODAL_OLD_BETA_8_CURR.h5', 'MULTIMODAL_OLD')
-curve=curve/ curve[len(curve) - 1]
-plt.plot(range(0, 256), curve, label='Multimodal Old',linestyle='--',color="salmon")
-
-curve = plots010('saved_models/NON_LOCAL_MIXTURE_BETA_8_CURR.h5', 'NON_LOCAL_MIXTURE')
-curve=curve/ curve[len(curve) - 1]
-plt.plot(range(0, 256), curve, label='Non Local Mixture',linestyle='--',color="lightsteelblue")
-'''
-curve = plots010('saved_models/MIXTURE_BETA_8_ONLY_LOS.h5', 'MIXTURE')
-curve=curve/ curve[len(curve) - 1]
-plt.plot(range(0, 256), curve, label='Only LOS',linestyle='--',color="darkgray")
-curve = plots010('saved_models/MIXTURE_BETA_8_ONLY_NLOS.h5', 'MIXTURE')
-curve=curve/ curve[len(curve) - 1]
-plt.plot(range(0, 256), curve, label='Only NLOS',linestyle='--',color="khaki")
-curve = plots010('saved_models/MIXTURE_BETA_8_ANTI.h5', 'MIXTURE')
-curve=curve/ curve[len(curve) - 1]
-plt.plot(range(0, 256), curve, label='Anti-Curriculum',linestyle='--',color="lightsteelblue")
-curve = plots010('saved_models/MIXTURE_BETA_8_VANILLA.h5','MIXTURE')
-curve=curve/ curve[len(curve) - 1]
-plt.plot(range(0, 256), curve, label='Vanilla',linestyle='--',color="mediumseagreen")
-'''
-curve = plots010('saved_models/MIXTURE_BETA_8_CURR.h5', 'MIXTURE')
-curve=curve/ curve[len(curve) - 1]
-plt.plot(range(0, 256), curve, label='Curriculum',linestyle='--',color="mediumseagreen")
-plt.legend()
-plt.ylim(0.5, 1)
-plt.xlim(0, 50)
-plt.xlabel('K')
-plt.title(' Top-K on s010')
-plt.ylabel('top-K')
-plt.grid()
-plt.savefig('s010_CURR_NON_LOCAL.png', dpi=150)
