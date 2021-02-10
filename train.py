@@ -35,28 +35,33 @@ def reorder(data, num_rows, num_columns):
     #write column-wise
     new_vector = np.reshape(original_matrix, num_rows*num_columns, 'F')
     return new_vector
-
-
+def testModel(model,LIDAR_val,POS_val,Y_val):
+    preds = model.predict([LIDAR_val,POS_val])    # Get predictions
+    preds= np.argsort(-preds, axis=1) #Descending order
+    true=np.argmax(Y_val[:,:], axis=1) #Best channel
+    curve=np.zeros(256)
+    for i in range(0,len(preds)):
+        curve[np.where(preds[i,:] == true[i])]=curve[np.where(preds[i,:] == true[i])]+1
+    curve=np.cumsum(curve)
+    return curve
 '''Training Parameters'''
-MC_REPS=2
-BETA=[0.8]    #Beta loss values to test
+
+MC_REPS=5
+BETA=[0,0.2,0.4,0.6,0.8,1]    #Beta loss values to test
 TEST_S010=False
-NET_TYPE = 'NON_LOCAL_MIXTURE'    #Type of network
+VAL_S009=False
+NET_TYPE = 'MIXTURE'    #Type of network
 FLATTENED=True      #If True Lidar is 2D
 SUM=False     #If True uses the method lidar_to_2d_summing() instead of lidar_to_2d() in dataLoader.py to process the LIDAR
 SHUFFLE=False
-LIDAR_TYPE='ABSOLUTE'   #Type of lidar images CENTERED: lidar centered at Rx, ABSOLUTE: lidar images as provided  and ABSOLUTE_LARGE: lidar images of larger size
+LIDAR_TYPE='ABSOLUTE'
 TRAIN_TYPES=['CURR','ANTI','VANILLA','ONLY_LOS','ONLY_NLOS']
-TRAIN_TYPE='CURR'   #Leave empty to perform normal training over the entire dataset.
+TRAIN_TYPE='VANILLA'
 if TRAIN_TYPE not in TRAIN_TYPES:
     print('Vanilla training over the entire dataset')
     TRAIN_TYPE=''
-seed=1
-np.random.seed(seed)
-tf.random.set_seed(seed)
 batch_size = 32
 num_epochs = 30
-
 '''Loading Data'''
 if LIDAR_TYPE=='CENTERED':
     POS_tr, LIDAR_tr, Y_tr, NLOS_tr = load_dataset('./data/s008_centered.npz',FLATTENED,SUM)
@@ -70,6 +75,9 @@ elif LIDAR_TYPE=='ABSOLUTE_LARGE':
     POS_tr, LIDAR_tr, Y_tr, NLOS_tr = load_dataset('./data/s008_large.npz',FLATTENED,SUM)
     POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_large.npz',FLATTENED,SUM)
     POS_te, LIDAR_te, Y_te, _ =load_dataset('./data/s010_large.npz',FLATTENED,SUM)
+POS_tr=POS_tr[:,0:2]
+POS_val=POS_val[:,0:2]
+POS_te=POS_te[:,0:2]
 if(SHUFFLE):
     ind=np.random.shuffle(np.arange(Y_tr.shape[0])-1)
     POS_tr=POS_tr[ind,:][0]
@@ -81,33 +89,34 @@ if TRAIN_TYPE in TRAIN_TYPES:
     Perc=np.linspace(0,1,stumps)
     NLOSind = np.where(NLOS_tr == 0)[0]
     LOSind = np.where(NLOS_tr == 1)[0]
+if(NET_TYPE=='MULTIMODAL' or NET_TYPE=='MULTIMODAL_OLD' or NET_TYPE=='MIXTURE' or NET_TYPE == "NON_LOCAL_MIXTURE"):
+    LIDAR_tr = LIDAR_tr * 3 - 2
+    LIDAR_val = LIDAR_val * 3 - 2
+    LIDAR_te = LIDAR_te * 3 - 2
 
 
 for beta in BETA:
+    seed=1
+    np.random.seed(seed)
+    tf.random.set_seed(seed)
     optim = Adam(lr=1e-3, epsilon=1e-8)
     scheduler = lambda epoch, lr: lr
     callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
-    checkpoint = ModelCheckpoint('./saved_models/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE+'.h5', monitor='val_top_10_accuracy', verbose=1,  save_best_only=True, save_weights_only=True, mode='auto', save_frequency=1)
+    if VAL_S009:
+        checkpoint = ModelCheckpoint('./KDExp/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE+'.h5', monitor='val_top_10_accuracy', verbose=1,  save_best_only=True, save_weights_only=True, mode='auto', save_frequency=1)
     #Training Phase
-
-    if(NET_TYPE=='MULTIMODAL' or NET_TYPE=='MIXTURE' or NET_TYPE == "NON_LOCAL_MIXTURE"):
+    curves=[]
+    if(NET_TYPE=='MULTIMODAL' or NET_TYPE=='MULTIMODAL_OLD' or NET_TYPE=='MIXTURE' or NET_TYPE == "NON_LOCAL_MIXTURE"):
         for rep in range(0,MC_REPS):
             if(NET_TYPE=='MULTIMODAL'):
                 model= MULTIMODAL(FLATTENED,LIDAR_TYPE)
+            if(NET_TYPE=='MULTIMODAL_OLD'):
+                model= MULTIMODAL_OLD(FLATTENED,LIDAR_TYPE)
             elif (NET_TYPE == "NON_LOCAL_MIXTURE"):
-                model = NON_LOCAL_MIXTURE(FLATTENED, LIDAR_TYPE)
-                '''Mixture seems to work well on unnormalized'''
-                if(rep==0):
-                    LIDAR_tr = LIDAR_tr * 3 - 2
-                    LIDAR_val = LIDAR_val * 3 - 2
-                    LIDAR_te = LIDAR_te * 3 - 2
+                model = NON_LOCAL_MIXTURE(FLATTENED, LIDAR_TYPE)    
             elif (NET_TYPE == 'MIXTURE'):
                 model = MIXTURE(FLATTENED, LIDAR_TYPE)
                 '''Mixture seems to work well on unnormalized'''
-                if(rep==0):
-                    LIDAR_tr = LIDAR_tr * 3 - 2
-                    LIDAR_val = LIDAR_val * 3 - 2
-                    LIDAR_te = LIDAR_te * 3 - 2
             model.compile(loss=KDLoss(beta),optimizer=optim,metrics=[metrics.categorical_accuracy,top_5_accuracy,top_10_accuracy,top_50_accuracy])
             if(rep==0):
                 model.summary()
@@ -119,25 +128,36 @@ for beta in BETA:
                         ind=np.concatenate((np.random.choice(NLOSind,NLOSind.shape[0]),np.random.choice(LOSind,int(Perc[ep]*LOSind.shape[0]))),axis=None)
                     elif(TRAIN_TYPE=='VANILLA'):
                         samples=LOSind.shape[0]+int(Perc[ep]*NLOSind.shape[0])
-                        ind=np.concatenate((np.random.choice(NLOSind,int(0.5*samples)),np.random.choice(LOSind,int(0.5*samples))))
+                        ind=np.random.choice(np.arange(0,LIDAR_tr.shape[0]),samples)
+                        #ind=np.concatenate((np.random.choice(NLOSind,int(0.5*samples)),np.random.choice(LOSind,int(0.5*samples))))
                     elif(TRAIN_TYPE=='ONLY_NLOS'):
                         ind=NLOSind
                     elif(TRAIN_TYPE=='ONLY_LOS'):
                         ind=LOSind
                     np.random.shuffle(ind)
-                    hist = model.fit([LIDAR_tr[ind,:,:,:],POS_tr[ind,:]], Y_tr[ind,:],validation_data=([LIDAR_val, POS_val], Y_val), epochs=int(num_epochs/stumps),batch_size=batch_size, callbacks=[checkpoint, callback])
+                    if VAL_S009:
+                        hist = model.fit([LIDAR_tr[ind,:,:,:],POS_tr[ind,:]], Y_tr[ind,:],validation_data=([LIDAR_val, POS_val], Y_val), epochs=int(num_epochs/stumps),batch_size=batch_size, callbacks=[checkpoint, callback])
+                    else:
+                        hist = model.fit([LIDAR_tr[ind,:,:,:],POS_tr[ind,:]], Y_tr[ind,:], epochs=int(num_epochs/stumps),batch_size=batch_size, callbacks=[callback])
                     if ep==0 and rep==0:
                         total_hist=hist
                     else:
                         for key in hist.history.keys():
                             total_hist.history[key].extend(hist.history[key])
+                curves.append(testModel(model,LIDAR_val,POS_val,Y_val))
+
             else:
-                hist = model.fit([LIDAR_tr,POS_tr], Y_tr, validation_data=([LIDAR_val,POS_val], Y_val), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])
+                if VAL_S009:
+                    hist = model.fit(([LIDAR_tr, POS_tr], Y_tr), validation_data=([LIDAR_val, POS_val], Y_val), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])
+                else:
+                    hist = model.fit(([LIDAR_tr, POS_tr], Y_tr), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])
                 if rep==0:
                     total_hist=hist
                 else:
                     for key in hist.history.keys():
                         total_hist.history[key].extend(hist.history[key])
+                curves.append(testModel(model,LIDAR_val,POS_val,Y_val))
+            np.save('./KDExp/Curves'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE, curves)
     elif(NET_TYPE=='IPC'):
         for rep in range(0,MC_REPS):
             model= LIDAR(FLATTENED,LIDAR_TYPE)
@@ -197,10 +217,11 @@ for beta in BETA:
                     for key in hist.history.keys():
                         total_hist.history[key].extend(hist.history[key])
     '''Saving weights and history for later'''
-    model.save_weights('./saved_models/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_FINAL_'+TRAIN_TYPE+'.h5')
-    with open('./saved_models/History'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE, 'wb') as file_pi:
+
+    model.save_weights('./KDExp/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_FINAL_'+TRAIN_TYPE+'.h5')
+    with open('./KDExp/History'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE, 'wb') as file_pi:
         pickle.dump(total_hist.history, file_pi)
-    model.load_weights('./saved_models/' + NET_TYPE + '_BETA_' + str(int(beta * 10))+'_'+TRAIN_TYPE+'.h5')
+    model.load_weights('./KDExp/' + NET_TYPE + '_BETA_' + str(int(beta * 10))+'_'+TRAIN_TYPE+'.h5')
     '''Testing on sS010'''
     if(TEST_S010):
         if(NET_TYPE=='MULTIMODAL' or NET_TYPE=='MIXTURE'):
