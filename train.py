@@ -44,19 +44,20 @@ def testModel(model,LIDAR_val,POS_val,Y_val):
         curve[np.where(preds[i,:] == true[i])]=curve[np.where(preds[i,:] == true[i])]+1
     curve=np.cumsum(curve)
     return curve
+
 '''Training Parameters'''
 
 MC_REPS=5
-BETA=[0,0.2,0.4,0.6,0.8,1]    #Beta loss values to test
+BETA=[0.8]    #Beta loss values to test
 TEST_S010=False
 VAL_S009=False
-NET_TYPE = 'MIXTURE'    #Type of network
+NET_TYPE = 'NON_LOCAL_MIXTURE'    #Type of network
 FLATTENED=True      #If True Lidar is 2D
 SUM=False     #If True uses the method lidar_to_2d_summing() instead of lidar_to_2d() in dataLoader.py to process the LIDAR
 SHUFFLE=False
 LIDAR_TYPE='ABSOLUTE'
 TRAIN_TYPES=['CURR','ANTI','VANILLA','ONLY_LOS','ONLY_NLOS']
-TRAIN_TYPE='VANILLA'
+TRAIN_TYPE='CURR'
 if TRAIN_TYPE not in TRAIN_TYPES:
     print('Vanilla training over the entire dataset')
     TRAIN_TYPE=''
@@ -95,16 +96,18 @@ if(NET_TYPE=='MULTIMODAL' or NET_TYPE=='MULTIMODAL_OLD' or NET_TYPE=='MIXTURE' o
     LIDAR_te = LIDAR_te * 3 - 2
 
 
+
 for beta in BETA:
     seed=1
     np.random.seed(seed)
     tf.random.set_seed(seed)
-    optim = Adam(lr=1e-3, epsilon=1e-8)
+    optim = Adam(lr=1e-3, epsilon=1e-7)
     scheduler = lambda epoch, lr: lr
     callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
     if VAL_S009:
-        checkpoint = ModelCheckpoint('./KDExp/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE+'.h5', monitor='val_top_10_accuracy', verbose=1,  save_best_only=True, save_weights_only=True, mode='auto', save_frequency=1)
+        checkpoint = ModelCheckpoint('./Final/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE+'.h5', monitor='val_top_10_accuracy', verbose=1,  save_best_only=True, save_weights_only=True, mode='auto', save_frequency=1)
     #Training Phase
+    curves10=[]
     curves=[]
     if(NET_TYPE=='MULTIMODAL' or NET_TYPE=='MULTIMODAL_OLD' or NET_TYPE=='MIXTURE' or NET_TYPE == "NON_LOCAL_MIXTURE"):
         for rep in range(0,MC_REPS):
@@ -113,11 +116,12 @@ for beta in BETA:
             if(NET_TYPE=='MULTIMODAL_OLD'):
                 model= MULTIMODAL_OLD(FLATTENED,LIDAR_TYPE)
             elif (NET_TYPE == "NON_LOCAL_MIXTURE"):
-                model = NON_LOCAL_MIXTURE(FLATTENED, LIDAR_TYPE)    
+                model = NON_LOCAL_MIXTURE(FLATTENED, LIDAR_TYPE)
             elif (NET_TYPE == 'MIXTURE'):
                 model = MIXTURE(FLATTENED, LIDAR_TYPE)
                 '''Mixture seems to work well on unnormalized'''
             model.compile(loss=KDLoss(beta),optimizer=optim,metrics=[metrics.categorical_accuracy,top_5_accuracy,top_10_accuracy,top_50_accuracy])
+            print('MONTE-CARLO REP '+str(rep)+' OUT OF '+str(MC_REPS))
             if(rep==0):
                 model.summary()
             if TRAIN_TYPE in TRAIN_TYPES:
@@ -144,8 +148,19 @@ for beta in BETA:
                     else:
                         for key in hist.history.keys():
                             total_hist.history[key].extend(hist.history[key])
-                curves.append(testModel(model,LIDAR_val,POS_val,Y_val))
-
+                model.save_weights('./Final/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+str(rep)+'_'+TRAIN_TYPE+'.h5')
+                c=testModel(model,LIDAR_val,POS_val,Y_val)
+                print('FINAL s009:')
+                print('Top 1:'+str(c[0]/c[len(c)-1]))
+                print('Top 5:'+str(c[4]/c[len(c)-1]))
+                print('Top 10:'+str(c[9]/c[len(c)-1]))
+                curves.append(c)
+                c=testModel(model,LIDAR_te,POS_te,Y_te)
+                print('FINAL s010:')
+                print('Top 1:'+str(c[0]/c[len(c)-1]))
+                print('Top 5:'+str(c[4]/c[len(c)-1]))
+                print('Top 10:'+str(c[9]/c[len(c)-1]))
+                curves10.append(c)
             else:
                 if VAL_S009:
                     hist = model.fit(([LIDAR_tr, POS_tr], Y_tr), validation_data=([LIDAR_val, POS_val], Y_val), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])
@@ -156,8 +171,13 @@ for beta in BETA:
                 else:
                     for key in hist.history.keys():
                         total_hist.history[key].extend(hist.history[key])
+                curves10.append(testModel(model,LIDAR_te,POS_te,Y_te))
+                model.save_weights('./Final/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+str(rep)+'_'+TRAIN_TYPE+'.h5')
                 curves.append(testModel(model,LIDAR_val,POS_val,Y_val))
-            np.save('./KDExp/Curves'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE, curves)
+        np.save('./Final/Curves'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE+'010', curves10)
+        np.save('./Final/Curves'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE, curves)
+        model.save_weights('./Final/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+rep+'_'+TRAIN_TYPE+'.h5')
+        print(NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE+'     CURVE  SAVED!')
     elif(NET_TYPE=='IPC'):
         for rep in range(0,MC_REPS):
             model= LIDAR(FLATTENED,LIDAR_TYPE)
@@ -187,6 +207,7 @@ for beta in BETA:
                 else:
                     for key in hist.history.keys():
                         total_hist.history[key].extend(hist.history[key])
+
     elif (NET_TYPE == 'GPS'):
         for rep in range(0,MC_REPS):
             model= GPS()
@@ -241,4 +262,3 @@ for beta in BETA:
         to_save=np.asarray(to_save)
         pred= np.argsort(-to_save, axis=1) #Descending order
         np.savetxt('./saved_models/PREDS_'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE+'.csv', pred, delimiter=',')
-
