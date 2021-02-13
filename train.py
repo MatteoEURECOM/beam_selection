@@ -46,7 +46,7 @@ def testModel(model,LIDAR_val,POS_val,Y_val):
     return curve
 
 '''Training Parameters'''
-
+PATH='Final'
 MC_REPS=5
 BETA=[0.8]    #Beta loss values to test
 TEST_S010=False
@@ -105,7 +105,7 @@ for beta in BETA:
     scheduler = lambda epoch, lr: lr
     callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
     if VAL_S009:
-        checkpoint = ModelCheckpoint('./Final/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE+'.h5', monitor='val_top_10_accuracy', verbose=1,  save_best_only=True, save_weights_only=True, mode='auto', save_frequency=1)
+        checkpoint = ModelCheckpoint('./'+PATH+'/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE+'.h5', monitor='val_top_10_accuracy', verbose=1,  save_best_only=True, save_weights_only=True, mode='auto', save_frequency=1)
     #Training Phase
     curves10=[]
     curves=[]
@@ -148,7 +148,7 @@ for beta in BETA:
                     else:
                         for key in hist.history.keys():
                             total_hist.history[key].extend(hist.history[key])
-                model.save_weights('./Final/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+str(rep)+'_'+TRAIN_TYPE+'.h5')
+                model.save_weights('./'+PATH+'/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+str(rep)+'_'+TRAIN_TYPE+'.h5')
                 c=testModel(model,LIDAR_val,POS_val,Y_val)
                 print('FINAL s009:')
                 print('Top 1:'+str(c[0]/c[len(c)-1]))
@@ -172,11 +172,11 @@ for beta in BETA:
                     for key in hist.history.keys():
                         total_hist.history[key].extend(hist.history[key])
                 curves10.append(testModel(model,LIDAR_te,POS_te,Y_te))
-                model.save_weights('./Final/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+str(rep)+'_'+TRAIN_TYPE+'.h5')
+                model.save_weights('./'+PATH+'/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+str(rep)+'_'+TRAIN_TYPE+'.h5')
                 curves.append(testModel(model,LIDAR_val,POS_val,Y_val))
-        np.save('./Final/Curves'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE+'010', curves10)
-        np.save('./Final/Curves'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE, curves)
-        model.save_weights('./Final/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+rep+'_'+TRAIN_TYPE+'.h5')
+        np.save('./'+PATH+'/Curves'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE+'010', curves10)
+        np.save('./'+PATH+'/Curves'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE, curves)
+        model.save_weights('./'+PATH+'/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+rep+'_'+TRAIN_TYPE+'.h5')
         print(NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE+'     CURVE  SAVED!')
     elif(NET_TYPE=='IPC'):
         for rep in range(0,MC_REPS):
@@ -239,10 +239,10 @@ for beta in BETA:
                         total_hist.history[key].extend(hist.history[key])
     '''Saving weights and history for later'''
 
-    model.save_weights('./KDExp/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_FINAL_'+TRAIN_TYPE+'.h5')
-    with open('./KDExp/History'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE, 'wb') as file_pi:
+    model.save_weights('./'+PATH+'/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_FINAL_'+TRAIN_TYPE+'.h5')
+    with open('./'+PATH+'/History'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE, 'wb') as file_pi:
         pickle.dump(total_hist.history, file_pi)
-    model.load_weights('./KDExp/' + NET_TYPE + '_BETA_' + str(int(beta * 10))+'_'+TRAIN_TYPE+'.h5')
+    model.load_weights('./'+PATH+'/' + NET_TYPE + '_BETA_' + str(int(beta * 10))+'_'+TRAIN_TYPE+'.h5')
     '''Testing on sS010'''
     if(TEST_S010):
         if(NET_TYPE=='MULTIMODAL' or NET_TYPE=='MIXTURE'):
@@ -261,4 +261,4 @@ for beta in BETA:
             to_save.append(new_vector)
         to_save=np.asarray(to_save)
         pred= np.argsort(-to_save, axis=1) #Descending order
-        np.savetxt('./saved_models/PREDS_'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE+'.csv', pred, delimiter=',')
+        np.savetxt('./'+PATH+'/PREDS_'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE+'.csv', pred, delimiter=',')
