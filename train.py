@@ -235,7 +235,10 @@ for beta in BETA:
                 else:
                     for key in hist.history.keys():
                         total_hist.history[key].extend(hist.history[key])
-
+        np.save('./'+PATH+'/Curves'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE+'010', curves10)
+        np.save('./'+PATH+'/Curves'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE, curves)
+        model.save_weights('./'+PATH+'/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+rep+'_'+TRAIN_TYPE+'.h5')
+        print(NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE+'     CURVE  SAVED!')
     elif (NET_TYPE == 'GPS'):
         for rep in range(0,MC_REPS):
             model= GPS()
