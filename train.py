@@ -55,12 +55,12 @@ def testIPCModel(model,LIDAR_val,Y_val):
     return curve
 
 '''Training Parameters'''
-PATH='NON_LOCAL_MIXTURE'
+PATH='Final'
 MC_REPS=5
 BETA=[0.8]    #Beta loss values to test
 TEST_S010=False
 VAL_S009=False
-NET_TYPE = 'IPC'    #Type of network
+NET_TYPE = 'NON_LOCAL_MIXTURE'    #Type of network
 FLATTENED=True      #If True Lidar is 2D
 SUM=False     #If True uses the method lidar_to_2d_summing() instead of lidar_to_2d() in dataLoader.py to process the LIDAR
 SHUFFLE=False
