@@ -44,14 +44,23 @@ def testModel(model,LIDAR_val,POS_val,Y_val):
         curve[np.where(preds[i,:] == true[i])]=curve[np.where(preds[i,:] == true[i])]+1
     curve=np.cumsum(curve)
     return curve
+def testIPCModel(model,LIDAR_val,Y_val):
+    preds = model.predict([LIDAR_val])    # Get predictions
+    preds= np.argsort(-preds, axis=1) #Descending order
+    true=np.argmax(Y_val[:,:], axis=1) #Best channel
+    curve=np.zeros(256)
+    for i in range(0,len(preds)):
+        curve[np.where(preds[i,:] == true[i])]=curve[np.where(preds[i,:] == true[i])]+1
+    curve=np.cumsum(curve)
+    return curve
 
 '''Training Parameters'''
-PATH='Final'
+PATH='NON_LOCAL_MIXTURE'
 MC_REPS=5
 BETA=[0.8]    #Beta loss values to test
 TEST_S010=False
 VAL_S009=False
-NET_TYPE = 'NON_LOCAL_MIXTURE'    #Type of network
+NET_TYPE = 'IPC'    #Type of network
 FLATTENED=True      #If True Lidar is 2D
 SUM=False     #If True uses the method lidar_to_2d_summing() instead of lidar_to_2d() in dataLoader.py to process the LIDAR
 SHUFFLE=False
@@ -101,9 +110,6 @@ for beta in BETA:
     seed=1
     np.random.seed(seed)
     tf.random.set_seed(seed)
-    optim = Adam(lr=1e-3, epsilon=1e-7)
-    scheduler = lambda epoch, lr: lr
-    callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
     if VAL_S009:
         checkpoint = ModelCheckpoint('./'+PATH+'/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE+'.h5', monitor='val_top_10_accuracy', verbose=1,  save_best_only=True, save_weights_only=True, mode='auto', save_frequency=1)
     #Training Phase
@@ -111,6 +117,9 @@ for beta in BETA:
     curves=[]
     if(NET_TYPE=='MULTIMODAL' or NET_TYPE=='MULTIMODAL_OLD' or NET_TYPE=='MIXTURE' or NET_TYPE == "NON_LOCAL_MIXTURE"):
         for rep in range(0,MC_REPS):
+            optim = Adam(lr=1e-3, epsilon=1e-8)
+            scheduler = lambda epoch, lr: lr
+            callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
             if(NET_TYPE=='MULTIMODAL'):
                 model= MULTIMODAL(FLATTENED,LIDAR_TYPE)
             if(NET_TYPE=='MULTIMODAL_OLD'):
@@ -180,6 +189,9 @@ for beta in BETA:
         print(NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE+'     CURVE  SAVED!')
     elif(NET_TYPE=='IPC'):
         for rep in range(0,MC_REPS):
+            optim = Adam(lr=1e-3, epsilon=1e-8)
+            scheduler = lambda epoch, lr: lr
+            callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
             model= LIDAR(FLATTENED,LIDAR_TYPE)
             model.compile(loss=KDLoss(beta),optimizer=optim,metrics=[metrics.categorical_accuracy,top_5_accuracy,top_10_accuracy,top_50_accuracy])
             if(rep==0):
@@ -192,14 +204,29 @@ for beta in BETA:
                         ind=np.concatenate((np.random.choice(NLOSind,NLOSind.shape[0]),np.random.choice(LOSind,int(Perc[ep]*LOSind.shape[0]))),axis=None)
                     elif(TRAIN_TYPE=='VANILLA'):
                         samples=LOSind.shape[0]+int(Perc[ep]*NLOSind.shape[0])
-                        ind=np.concatenate((np.random.choice(NLOSind,int(0.5*samples)),np.random.choice(LOSind,int(0.5*samples))))
+                        ind=np.random.choice(np.arange(0,LIDAR_tr.shape[0]),samples)
                     np.random.shuffle(ind)
-                    hist = model.fit(LIDAR_tr[ind, :, :, :], Y_tr[ind, :],validation_data=(LIDAR_val, Y_val), epochs=int(num_epochs/stumps), batch_size=batch_size,callbacks=[checkpoint, callback])
-                    if ep==0:
+                    if VAL_S009:
+                        hist = model.fit(LIDAR_tr[ind, :, :, :], Y_tr[ind, :],validation_data=(LIDAR_val, Y_val), epochs=int(num_epochs/stumps), batch_size=batch_size,callbacks=[checkpoint, callback])
+                    else:
+                        hist = model.fit(LIDAR_tr[ind, :, :, :], Y_tr[ind, :], epochs=int(num_epochs/stumps), batch_size=batch_size,callbacks=[ callback])
+                    if ep==0 and rep==0:
                         total_hist=hist
                     else:
                         for key in hist.history.keys():
                             total_hist.history[key].extend(hist.history[key])
+                model.save_weights('./'+PATH+'/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+str(rep)+'_'+TRAIN_TYPE+'.h5')
+                c=testIPCModel(model,LIDAR_val,Y_val)
+                print('FINAL s009:')
+                print('Top 1:'+str(c[0]/c[len(c)-1]))
+                print('Top 5:'+str(c[4]/c[len(c)-1]))
+                print('Top 10:'+str(c[9]/c[len(c)-1]))
+                curves.append(c)
+                c=testIPCModel(model,LIDAR_te,Y_te)
+                print('FINAL s010:')
+                print('Top 1:'+str(c[0]/c[len(c)-1]))
+                print('Top 5:'+str(c[4]/c[len(c)-1]))
+                print('Top 10:'+str(c[9]/c[len(c)-1]))
             else:
                 hist = model.fit(LIDAR_tr, Y_tr, validation_data=(LIDAR_val, Y_val), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])
                 if ep==0 and rep==0:
