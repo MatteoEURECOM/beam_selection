@@ -9,33 +9,79 @@ import keras
 from utils import plots009,plots010,finalMCAvg,plotNLOSvsLOS
 
 
-#Top-K s009 Plot NLOS vs LOS
 
 
-curveLOS, curveNLOS = plotNLOSvsLOS('CurrExp/MIXTURE_BETA_8_ANTI.h5', 'MIXTURE')
-curveLOS=curveLOS/ curveLOS[len(curveLOS) - 1]
-curveNLOS=curveNLOS/ curveNLOS[len(curveNLOS) - 1]
-plt.plot(range(0, 256), curveLOS, label=r'Anti-Curriculum LOS',linestyle='--',color="orangered")
-plt.plot(range(0, 256), curveNLOS, label=r'Anti-Curriculum NLOS',linestyle='-.',color="orangered")
-curveLOS, curveNLOS = plotNLOSvsLOS('CurrExp/MIXTURE_BETA_8_VANILLA.h5', 'MIXTURE')
-curveLOS=curveLOS/ curveLOS[len(curveLOS) - 1]
-curveNLOS=curveNLOS/ curveNLOS[len(curveNLOS) - 1]
-plt.plot(range(0, 256), curveLOS, label=r'Standard LOS',linestyle='--',color="khaki")
-plt.plot(range(0, 256), curveNLOS, label=r'Standard NLOS',linestyle='-.',color="khaki")
-curveLOS, curveNLOS = plotNLOSvsLOS('CurrExp/MIXTURE_BETA_8_CURR.h5', 'MIXTURE')
-curveLOS=curveLOS/ curveLOS[len(curveLOS) - 1]
-curveNLOS=curveNLOS/ curveNLOS[len(curveNLOS) - 1]
-plt.plot(range(0, 256), curveLOS, label=r'Curriculum LOS',linestyle='--',color="yellowgreen")
-plt.plot(range(0, 256), curveNLOS, label=r'Curriculum NLOS',linestyle='-.',color="yellowgreen")
+
+curve=np.load('Final/CurvesNON_LOCAL_MIXTURE_BETA_8_CURR.npy')
+curve=curve/ curve[0,curve.shape[1] - 1]
+mean=np.mean(curve,axis=0)
+std=np.sqrt(np.sum((curve-mean)**2,axis=0)/(curve.shape[0]-1))
+plt.plot(np.arange(1,257),mean, label=r'Anticurriculum',color="orange")
+
+curve=np.load('KDExp/CurvesMIXTURE_BETA_0_VANILLA.npy')
+curve=curve/ curve[0,curve.shape[1] - 1]
+mean=np.mean(curve,axis=0)
+std=np.sqrt(np.sum((curve-mean)**2,axis=0)/(curve.shape[0]-1))
+plt.plot(np.arange(1,257), mean, label=r'Curriculum', color="yellowgreen")
+
+curve=np.load('NLAExp/CurvesNON_LOCAL_MIXTURE_BETA_8_VANILLA_EMB.npy')
+curve=curve/ curve[0,curve.shape[1] - 1]
+mean=np.mean(curve,axis=0)
+std=np.sqrt(np.sum((curve-mean)**2,axis=0)/(curve.shape[0]-1))
+plt.plot(np.arange(1,257), mean,  label=r'$Standard', color="khaki")
+
+
+
+plt.legend()
+plt.ylim(0.4, 1)
+plt.xlim(1, 50)
+plt.xlabel('K')
+plt.title(' Top-K on s010')
+plt.ylabel('top-K')
+plt.grid()
+plt.show()
+plt.savefig('CurrExp/s010.pdf')
+
+plt.clf()
+
+
+
+curve=np.load('KDExp/CurvesMIXTURE_BETA_8_ANTI.npy')
+curve=curve/ curve[0,curve.shape[1] - 1]
+mean=np.mean(curve,axis=0)
+std=np.sqrt(np.sum((curve-mean)**2,axis=0)/(curve.shape[0]-1))
+plt.plot(np.arange(1,257),mean, label=r'Anticurriculum',color="orange")
+
+curve=np.load('KDExp/CurvesMIXTURE_BETA_8_CURR.npy')
+curve=curve/ curve[0,curve.shape[1] - 1]
+mean=np.mean(curve,axis=0)
+std=np.sqrt(np.sum((curve-mean)**2,axis=0)/(curve.shape[0]-1))
+plt.plot(np.arange(1,257), mean, label=r'Curriculum', color="yellowgreen")
+
+curve=np.load('KDExp/CurvesMIXTURE_BETA_8_VANILLA.npy')
+curve=curve/ curve[0,curve.shape[1] - 1]
+mean=np.mean(curve,axis=0)
+std=np.sqrt(np.sum((curve-mean)**2,axis=0)/(curve.shape[0]-1))
+plt.plot(np.arange(1,257), mean,  label=r'$Standard', color="khaki")
+
+
+
 plt.legend()
 plt.ylim(0.5, 1)
-plt.xlim(0, 50)
+plt.xlim(1, 50)
 plt.xlabel('K')
 plt.title(' Top-K on s009')
 plt.ylabel('top-K')
 plt.grid()
-plt.savefig('CurrExp/s009NLOSLOS.pdf')
+plt.show()
+plt.savefig('CurrExp/s009.pdf')
+
 plt.clf()
+
+
+#Top-K s009 Plot NLOS vs LOS
+
+
 
 
 #METRICS Plot

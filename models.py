@@ -66,7 +66,6 @@ def GPS():
 def MULTIMODAL(FLATTENED,LIDAR_TYPE):
     '''
     Multimodal Neural Network GPS+LIDAR
-    NOTE: We can get very similar performance with MIXTURE model but with way less params
     '''
     if(LIDAR_TYPE=='CENTERED'):
         if(FLATTENED):
@@ -114,9 +113,6 @@ def MULTIMODAL(FLATTENED,LIDAR_TYPE):
     return architecture
 
 def MULTIMODAL_OLD(FLATTENED,LIDAR_TYPE):
-    '''
-    Multimodal Neural Network GPS+LIDAR that was submitted at the beamSelection challenge
-    '''
     if(LIDAR_TYPE=='CENTERED'):
         if(FLATTENED):
             input_lid = Input(shape=(67, 67, 1))
@@ -157,55 +153,7 @@ def MULTIMODAL_OLD(FLATTENED,LIDAR_TYPE):
     architecture = Model(inputs=[input_lid,input_coord], outputs=predictions)
     return architecture
 
-
-
 def MIXTURE(FLATTENED, LIDAR_TYPE):
-    '''
-    Multimodal Neural Network GPS+LIDAR, this is the one that seems to have the best compromise between params and performance
-    '''
-    if(LIDAR_TYPE=='CENTERED'):
-        if(FLATTENED):
-            input_lid = Input(shape=(67, 67, 1))
-        else:
-            input_lid = Input(shape=(67, 67, 10))
-    elif(LIDAR_TYPE=='ABSOLUTE'):
-        if(FLATTENED):
-            input_lid = Input(shape=(20, 200, 1))
-        else:
-            input_lid = Input(shape=(20, 200, 10))
-    elif(LIDAR_TYPE=='ABSOLUTE_LARGE'):
-        if(FLATTENED):
-            input_lid = Input(shape=(60, 330, 1))
-        else:
-            input_lid = Input(shape=(60, 330, 10))
-    noisy_input_lid=GaussianNoise(0.01)(input_lid)
-    layer = Conv2D(5, kernel_size=(5, 5), activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(noisy_input_lid)
-    layer = Conv2D(5, kernel_size=(5, 5), activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
-    layer = Conv2D(5, kernel_size=(5, 5), strides=2, activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
-    layer = Conv2D(5, kernel_size=(5, 5), activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
-    layer = Conv2D(5, kernel_size=(5, 5), strides=2, activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
-    layer = Conv2D(1, kernel_size=(3, 3), strides=(1, 2), activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
-    layer = Flatten()(layer)
-    out_lid = Dense(16, activation='relu')(layer)
-    '''GPS branch'''
-    input_coord = Input(shape=(3))
-    noisy_input_coord=GaussianNoise(0.002)(input_coord)
-    '''Concatenation'''
-    concatenated = concatenate([out_lid, noisy_input_coord])
-    reg_val = 0
-    layer = Dense(64, activation='relu')(concatenated)
-    layer = Dense(64, activation='relu')(layer)
-    layer = Dense(64, activation='relu')(layer)
-    predictions = Dense(256, activation='softmax')(layer)
-    architecture = Model(inputs=[input_lid, input_coord], outputs=predictions)
-    return architecture
-
-
-
-def NON_LOCAL_MIXTURE(FLATTENED, LIDAR_TYPE):
-    '''
-    Multimodal Neural Network GPS+LIDAR with non local layer placed after the third conv
-    '''
     if(LIDAR_TYPE=='CENTERED'):
         if(FLATTENED):
             input_lid = Input(shape=(67, 67, 1))
@@ -224,15 +172,14 @@ def NON_LOCAL_MIXTURE(FLATTENED, LIDAR_TYPE):
     noisy_input_lid=GaussianNoise(0)(input_lid)
     layer = Conv2D(5, kernel_size=(5, 5), activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(noisy_input_lid)
     layer = Conv2D(5, kernel_size=(5, 5), activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
-    layer_input = Conv2D(5, kernel_size=(5, 5), strides=2, activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
-    non_local_layer= non_local_block(layer_input,intermediate_dim=1)
-    layer = Conv2D(5, kernel_size=(5, 5), activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(non_local_layer)
+    layer = Conv2D(5, kernel_size=(5, 5), strides=2, activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
+    layer = Conv2D(5, kernel_size=(5, 5), activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
     layer = Conv2D(5, kernel_size=(5, 5), strides=2, activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
     layer = Conv2D(1, kernel_size=(3, 3), strides=(1, 2), activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
     layer = Flatten()(layer)
     out_lid = Dense(16, activation='relu')(layer)
     '''GPS branch'''
-    input_coord = Input(shape=(3))
+    input_coord = Input(shape=(2))
     noisy_input_coord=GaussianNoise(0)(input_coord)
     '''Concatenation'''
     concatenated = concatenate([out_lid, noisy_input_coord])
@@ -244,7 +191,9 @@ def NON_LOCAL_MIXTURE(FLATTENED, LIDAR_TYPE):
     architecture = Model(inputs=[input_lid, input_coord], outputs=predictions)
     return architecture
 
-'''
+
+
+
 def NON_LOCAL_MIXTURE(FLATTENED, LIDAR_TYPE):
     if(LIDAR_TYPE=='CENTERED'):
         if(FLATTENED):
@@ -261,20 +210,20 @@ def NON_LOCAL_MIXTURE(FLATTENED, LIDAR_TYPE):
             input_lid = Input(shape=(60, 330, 1))
         else:
             input_lid = Input(shape=(60, 330, 10))
-    noisy_input_lid=GaussianNoise(0.01)(input_lid)
-    layer = Conv2D(5, kernel_size=(3, 3), activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(noisy_input_lid)
-    layer = Conv2D(5, kernel_size=(3, 3), strides=2, activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
-    layer = Conv2D(5, kernel_size=(3, 3), activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
-    layer_input = Conv2D(5, kernel_size=(3, 3), strides=2,activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
-    non_local_layer= non_local_block(layer_input,intermediate_dim=1)
-    layer = Conv2D(5, kernel_size=(3, 3),  activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(non_local_layer)
-    layer = Conv2D(1, kernel_size=(3, 3),  activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
+    noisy_input_lid=GaussianNoise(0)(input_lid)
+    layer = Conv2D(5, kernel_size=(5, 5), activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(noisy_input_lid)
+    layer = Conv2D(5, kernel_size=(5, 5), activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
+    layer = Conv2D(5, kernel_size=(5, 5), strides=2, activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
+    layer = Conv2D(5, kernel_size=(5, 5), activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
+    layer = Conv2D(5, kernel_size=(5, 5), strides=2, activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
+    NLA= non_local_block(layer,intermediate_dim=4,mode='dot')
+    layer = Conv2D(1, kernel_size=(3, 3), strides=(1, 2), activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(NLA)
     layer = Flatten()(layer)
     out_lid = Dense(16, activation='relu')(layer)
-
-    input_coord = Input(shape=(3))
-    noisy_input_coord=GaussianNoise(0.002)(input_coord)
-
+    '''GPS branch'''
+    input_coord = Input(shape=(2))
+    noisy_input_coord=GaussianNoise(0)(input_coord)
+    '''Concatenation'''
     concatenated = concatenate([out_lid, noisy_input_coord])
     reg_val = 0
     layer = Dense(64, activation='relu')(concatenated)
@@ -283,4 +232,43 @@ def NON_LOCAL_MIXTURE(FLATTENED, LIDAR_TYPE):
     predictions = Dense(256, activation='softmax')(layer)
     architecture = Model(inputs=[input_lid, input_coord], outputs=predictions)
     return architecture
-'''
+    
+def NON_LOCAL_MIXTURE_OLD(FLATTENED, LIDAR_TYPE):
+    if(LIDAR_TYPE=='CENTERED'):
+        if(FLATTENED):
+            input_lid = Input(shape=(67, 67, 1))
+        else:
+            input_lid = Input(shape=(67, 67, 10))
+    elif(LIDAR_TYPE=='ABSOLUTE'):
+        if(FLATTENED):
+            input_lid = Input(shape=(20, 200, 1))
+        else:
+            input_lid = Input(shape=(20, 200, 10))
+    elif(LIDAR_TYPE=='ABSOLUTE_LARGE'):
+        if(FLATTENED):
+            input_lid = Input(shape=(60, 330, 1))
+        else:
+            input_lid = Input(shape=(60, 330, 10))
+    noisy_input_lid=GaussianNoise(0.01)(input_lid)
+    layer = Conv2D(5, kernel_size=(5, 5), activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(noisy_input_lid)
+    layer = Conv2D(5, kernel_size=(5, 5), activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
+    layer= Conv2D(5, kernel_size=(5, 5), strides=2, activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
+    
+    layer = Conv2D(5, kernel_size=(5, 5), activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
+    layer_input = Conv2D(5, kernel_size=(5, 5), strides=2, activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(layer)
+    non_local_layer= non_local_block(layer_input,intermediate_dim=2)
+    layer = Conv2D(1, kernel_size=(3, 3), strides=(1, 2), activation='relu', padding="SAME", kernel_initializer=initializers.HeUniform)(non_local_layer)
+    layer = Flatten()(layer)
+    out_lid = Dense(16, activation='relu')(layer)
+    '''GPS branch'''
+    input_coord = Input(shape=(3))
+    noisy_input_coord=GaussianNoise(0.002)(input_coord)
+    '''Concatenation'''
+    concatenated = concatenate([out_lid, noisy_input_coord])
+    reg_val = 0
+    layer = Dense(64, activation='relu')(concatenated)
+    layer = Dense(64, activation='relu')(layer)
+    layer = Dense(64, activation='relu')(layer)
+    predictions = Dense(256, activation='softmax')(layer)
+    architecture = Model(inputs=[input_lid, input_coord], outputs=predictions)
+    return architecture
