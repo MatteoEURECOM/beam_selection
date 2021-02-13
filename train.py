@@ -99,7 +99,8 @@ if TRAIN_TYPE in TRAIN_TYPES:
     Perc=np.linspace(0,1,stumps)
     NLOSind = np.where(NLOS_tr == 0)[0]
     LOSind = np.where(NLOS_tr == 1)[0]
-if(NET_TYPE=='MULTIMODAL' or NET_TYPE=='MULTIMODAL_OLD' or NET_TYPE=='MIXTURE' or NET_TYPE == "NON_LOCAL_MIXTURE"):
+if(NET_TYPE=='MULTIMODAL' or NET_TYPE=='MULTIMODAL_OLD' or NET_TYPE=='MIXTURE' or NET_TYPE == "NON_LOCAL_MIXTURE"or NET_TYPE == "IPC"):
+    print('Lidar scaled in 0-3 interval')
     LIDAR_tr = LIDAR_tr * 3 - 2
     LIDAR_val = LIDAR_val * 3 - 2
     LIDAR_te = LIDAR_te * 3 - 2
