@@ -54,24 +54,54 @@ def testIPCModel(model,LIDAR_val,Y_val):
     curve=np.cumsum(curve)
     return curve
 
+def throughtputRatio(model,LIDAR_val,POS_val):
+    _, _, Y_val, _ =load_dataset('./data/s009_unnormalized_labels.npz',True,False)
+    preds = model.predict([LIDAR_val* 3 - 2,POS_val])    # Get predictionspredictions
+    preds= np.argsort(-preds, axis=1) #Descending order
+    true=np.argmax(Y_val[:,:], axis=1) #Best channel
+    curve=np.zeros((len(preds),256))
+    max_gain=np.zeros(len(preds))
+    for i in range(0,len(preds)):
+        max_gain[i]=Y_val[i,true[i]]
+        curve[i,0]=Y_val[i,preds[i,0]]
+        for j in range(1,256):
+            curve[i,j]=np.max([curve[i,j-1],Y_val[i,preds[i,j]]])
+    curve=np.sum(np.log2(1+curve),axis=0)/np.sum(np.log2(max_gain+1))
+    return curve
+
+def throughtputRatioIPC(model,LIDAR_val):
+    _, _, Y_val, _ =load_dataset('./data/s009_unnormalized_labels.npz',True,False)
+    preds = model.predict(LIDAR_val* 3 - 2)    # Get predictionspredictions
+    preds= np.argsort(-preds, axis=1) #Descending order
+    true=np.argmax(Y_val[:,:], axis=1) #Best channel
+    curve=np.zeros((len(preds),256))
+    max_gain=np.zeros(len(preds))
+    for i in range(0,len(preds)):
+        max_gain[i]=Y_val[i,true[i]]
+        curve[i,0]=Y_val[i,preds[i,0]]
+        for j in range(1,256):
+            curve[i,j]=np.max([curve[i,j-1],Y_val[i,preds[i,j]]])
+    curve=np.sum(np.log2(1+curve),axis=0)/np.sum(np.log2(max_gain+1))
+    return curve
+
 '''Training Parameters'''
 PATH='Final'
 MC_REPS=5
 BETA=[0.8]    #Beta loss values to test
 TEST_S010=False
 VAL_S009=False
-NET_TYPE = 'NON_LOCAL_MIXTURE'    #Type of network
+NET_TYPE = 'IPC'    #Type of network
 FLATTENED=True      #If True Lidar is 2D
 SUM=False     #If True uses the method lidar_to_2d_summing() instead of lidar_to_2d() in dataLoader.py to process the LIDAR
 SHUFFLE=False
 LIDAR_TYPE='ABSOLUTE'
 TRAIN_TYPES=['CURR','ANTI','VANILLA','ONLY_LOS','ONLY_NLOS']
-TRAIN_TYPE='CURR'
+TRAIN_TYPE=''
 if TRAIN_TYPE not in TRAIN_TYPES:
     print('Vanilla training over the entire dataset')
     TRAIN_TYPE=''
 batch_size = 32
-num_epochs = 30
+num_epochs = 20
 '''Loading Data'''
 if LIDAR_TYPE=='CENTERED':
     POS_tr, LIDAR_tr, Y_tr, NLOS_tr = load_dataset('./data/s008_centered.npz',FLATTENED,SUM)
@@ -116,6 +146,7 @@ for beta in BETA:
     #Training Phase
     curves10=[]
     curves=[]
+    throughtput=[]
     if(NET_TYPE=='MULTIMODAL' or NET_TYPE=='MULTIMODAL_OLD' or NET_TYPE=='MIXTURE' or NET_TYPE == "NON_LOCAL_MIXTURE"):
         for rep in range(0,MC_REPS):
             optim = Adam(lr=1e-3, epsilon=1e-8)
@@ -160,6 +191,12 @@ for beta in BETA:
                             total_hist.history[key].extend(hist.history[key])
                 model.save_weights('./'+PATH+'/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+str(rep)+'_'+TRAIN_TYPE+'.h5')
                 c=testModel(model,LIDAR_val,POS_val,Y_val)
+                th=throughtputRatio(model,LIDAR_val,POS_val,Y_val)
+                throughtput.append(th)
+                print('Throughput s009:')
+                print('Top 1:'+str(th[0]))
+                print('Top 5:'+str(th[4]))
+                print('Top 10:'+str(th[9]))
                 print('FINAL s009:')
                 print('Top 1:'+str(c[0]/c[len(c)-1]))
                 print('Top 5:'+str(c[4]/c[len(c)-1]))
@@ -175,15 +212,31 @@ for beta in BETA:
                 if VAL_S009:
                     hist = model.fit(([LIDAR_tr, POS_tr], Y_tr), validation_data=([LIDAR_val, POS_val], Y_val), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])
                 else:
-                    hist = model.fit(([LIDAR_tr, POS_tr], Y_tr), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])
+                    hist = model.fit(([LIDAR_tr, POS_tr], Y_tr), epochs=num_epochs, batch_size=batch_size,callbacks=[callback])
                 if rep==0:
                     total_hist=hist
                 else:
                     for key in hist.history.keys():
                         total_hist.history[key].extend(hist.history[key])
-                curves10.append(testModel(model,LIDAR_te,POS_te,Y_te))
                 model.save_weights('./'+PATH+'/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+str(rep)+'_'+TRAIN_TYPE+'.h5')
-                curves.append(testModel(model,LIDAR_val,POS_val,Y_val))
+                c=testModel(model,LIDAR_val,POS_val,Y_val)
+                th=throughtputRatio(model,LIDAR_val,POS_val,Y_val)
+                throughtput.append(th)
+                print('Throughput s009:')
+                print('Top 1:'+str(th[0]))
+                print('Top 5:'+str(th[4]))
+                print('Top 10:'+str(th[9]))
+                print('FINAL s009:')
+                print('Top 1:'+str(c[0]/c[len(c)-1]))
+                print('Top 5:'+str(c[4]/c[len(c)-1]))
+                print('Top 10:'+str(c[9]/c[len(c)-1]))
+                curves.append(c)
+                c=testModel(model,LIDAR_te,POS_te,Y_te)
+                print('FINAL s010:')
+                print('Top 1:'+str(c[0]/c[len(c)-1]))
+                print('Top 5:'+str(c[4]/c[len(c)-1]))
+                print('Top 10:'+str(c[9]/c[len(c)-1]))
+                curves10.append(c)
         np.save('./'+PATH+'/Curves'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE+'010', curves10)
         np.save('./'+PATH+'/Curves'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE, curves)
         model.save_weights('./'+PATH+'/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+rep+'_'+TRAIN_TYPE+'.h5')
@@ -191,7 +244,7 @@ for beta in BETA:
     elif(NET_TYPE=='IPC'):
         for rep in range(0,MC_REPS):
             optim = Adam(lr=1e-3, epsilon=1e-8)
-            scheduler = lambda epoch, lr: lr
+            scheduler = lambda epoch, lr: lr if epoch < 10 else lr/10.
             callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
             model= LIDAR(FLATTENED,LIDAR_TYPE)
             model.compile(loss=KDLoss(beta),optimizer=optim,metrics=[metrics.categorical_accuracy,top_5_accuracy,top_10_accuracy,top_50_accuracy])
@@ -229,12 +282,24 @@ for beta in BETA:
                 print('Top 5:'+str(c[4]/c[len(c)-1]))
                 print('Top 10:'+str(c[9]/c[len(c)-1]))
             else:
-                hist = model.fit(LIDAR_tr, Y_tr, validation_data=(LIDAR_val, Y_val), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])
-                if ep==0 and rep==0:
+                hist = model.fit(LIDAR_tr, Y_tr, validation_data=(LIDAR_val, Y_val), epochs=num_epochs, batch_size=batch_size,callbacks=[callback])
+                if ep==0:
                     total_hist=hist
                 else:
                     for key in hist.history.keys():
                         total_hist.history[key].extend(hist.history[key])
+                model.save_weights('./'+PATH+'/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+str(rep)+'_'+TRAIN_TYPE+'.h5')
+                c=testIPCModel(model,LIDAR_val,Y_val)
+                print('FINAL s009:')
+                print('Top 1:'+str(c[0]/c[len(c)-1]))
+                print('Top 5:'+str(c[4]/c[len(c)-1]))
+                print('Top 10:'+str(c[9]/c[len(c)-1]))
+                curves.append(c)
+                c=testIPCModel(model,LIDAR_te,Y_te)
+                print('FINAL s010:')
+                print('Top 1:'+str(c[0]/c[len(c)-1]))
+                print('Top 5:'+str(c[4]/c[len(c)-1]))
+                print('Top 10:'+str(c[9]/c[len(c)-1]))
         np.save('./'+PATH+'/Curves'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE+'010', curves10)
         np.save('./'+PATH+'/Curves'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE, curves)
         model.save_weights('./'+PATH+'/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+rep+'_'+TRAIN_TYPE+'.h5')

@@ -188,6 +188,53 @@ def plots010(saved_model,Net,LIDAR_TYPE='ABSOLUTE',EMBEEDING='embedded',intermed
     curve=np.cumsum(curve)
     return curve
 
+def throughtputRatio(saved_model,Net,LIDAR_TYPE='ABSOLUTE',EMBEEDING='embedded',intermediate_dim=1):
+    ### Plot Validation Accuracy for LoS and NLoS channels
+    #NLOS
+    if LIDAR_TYPE=='CENTERED':
+        POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_centered.npz',FLATTENED,SUM)
+    elif LIDAR_TYPE=='ABSOLUTE':
+        POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_original_labels.npz',FLATTENED,SUM)
+        _, _, Y_val, _ =load_dataset('./data/s009_unnormalized_labels.npz',FLATTENED,SUM)
+        POS_val=POS_val[:,0:2]
+    elif LIDAR_TYPE=='ABSOLUTE_LARGE':
+        POS_val, LIDAR_val, Y_val, NLOS_val =load_dataset('./data/s009_large.npz',FLATTENED,SUM)
+    if (Net == 'MULTIMODAL'):
+        model= MULTIMODAL(FLATTENED,LIDAR_TYPE)
+        model.load_weights(saved_model)
+        preds = model.predict([LIDAR_val,POS_val])  # Get predictions
+    elif (Net == 'MULTIMODAL_OLD'):
+        model= MULTIMODAL_OLD(FLATTENED,LIDAR_TYPE)
+        model.load_weights(saved_model)
+        preds =  model.predict([LIDAR_val* 3 - 2,POS_val])  # Get predictions
+    elif (Net == 'IPC'):
+        model= LIDAR(FLATTENED,LIDAR_TYPE)
+        model.load_weights(saved_model)
+        preds = model.predict(LIDAR_val)  # Get predictions
+    elif(Net == 'GPS'):
+        model = GPS()
+        model.load_weights(saved_model)
+        preds = model.predict(POS_val)  # Get predictions
+    elif(Net == 'MIXTURE'):
+        model = MIXTURE(FLATTENED, LIDAR_TYPE)
+        model.load_weights(saved_model)
+        preds = model.predict([LIDAR_val* 3 - 2,POS_val])    # Get predictions
+    elif(Net == 'NON_LOCAL_MIXTURE'):
+        model = NON_LOCAL_MIXTURE(FLATTENED, LIDAR_TYPE)
+        model.load_weights(saved_model)
+        preds = model.predict([LIDAR_val* 3 - 2,POS_val])    # Get predictionspredictions
+    preds= np.argsort(-preds, axis=1) #Descending order
+    true=np.argmax(Y_val[:,:], axis=1) #Best channel
+    curve=np.zeros((len(preds),256))
+    max_gain=np.zeros(len(preds))
+    for i in range(0,len(preds)):
+        max_gain[i]=Y_val[i,true[i]]
+        curve[i,0]=Y_val[i,preds[i,0]]
+        for j in range(1,256):
+            curve[i,j]=np.max([curve[i,j-1],Y_val[i,preds[i,j]]])
+    curve=np.sum(np.log2(1+curve),axis=0)/np.sum(np.log2(max_gain+1))
+    return curve
+
 def readHistoryMC(path,reps):
 
     history = pickle.load(open(path, "rb"))

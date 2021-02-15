@@ -1,5 +1,8 @@
 import pandas as pd
 import numpy as np
+import scipy.io
+mat = scipy.io.loadmat('PerfS009.mat')
+
 
 '''S008 mean and standard deviation to normalize GPS inputs'''
 s008_mean=[757.8,555.4,2.1]

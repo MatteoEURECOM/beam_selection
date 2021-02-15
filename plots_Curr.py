@@ -1,10 +1,8 @@
 import numpy as np
 import matplotlib
 from matplotlib import pyplot as plt
+import scipy.io
 
-
-# Allows to use LaTeX default font
-matplotlib.use('TkAgg')
 plt.rc('font', family='serif', serif='Computer Modern Roman', size=14) # size=14 refers to the numbers on the x, y axes.
 plt.rc('text', usetex=True)
 
