@@ -56,7 +56,7 @@ def testIPCModel(model,LIDAR_val,Y_val):
 
 def throughtputRatio(model,LIDAR_val,POS_val):
     _, _, Y_val, _ =load_dataset('./data/s009_unnormalized_labels.npz',True,False)
-    preds = model.predict([LIDAR_val* 3 - 2,POS_val])    # Get predictionspredictions
+    preds = model.predict([LIDAR_val,POS_val])    # Get predictionspredictions
     preds= np.argsort(-preds, axis=1) #Descending order
     true=np.argmax(Y_val[:,:], axis=1) #Best channel
     curve=np.zeros((len(preds),256))
@@ -71,7 +71,7 @@ def throughtputRatio(model,LIDAR_val,POS_val):
 
 def throughtputRatioIPC(model,LIDAR_val):
     _, _, Y_val, _ =load_dataset('./data/s009_unnormalized_labels.npz',True,False)
-    preds = model.predict(LIDAR_val* 3 - 2)    # Get predictionspredictions
+    preds = model.predict(LIDAR_val)    # Get predictionspredictions
     preds= np.argsort(-preds, axis=1) #Descending order
     true=np.argmax(Y_val[:,:], axis=1) #Best channel
     curve=np.zeros((len(preds),256))
@@ -86,11 +86,11 @@ def throughtputRatioIPC(model,LIDAR_val):
 
 '''Training Parameters'''
 PATH='Final'
-MC_REPS=5
+MC_REPS=10
 BETA=[0.8]    #Beta loss values to test
 TEST_S010=False
 VAL_S009=False
-NET_TYPE = 'IPC'    #Type of network
+NET_TYPE = 'MULTIMODAL_OLD'    #Type of network
 FLATTENED=True      #If True Lidar is 2D
 SUM=False     #If True uses the method lidar_to_2d_summing() instead of lidar_to_2d() in dataLoader.py to process the LIDAR
 SHUFFLE=False
@@ -101,7 +101,7 @@ if TRAIN_TYPE not in TRAIN_TYPES:
     print('Vanilla training over the entire dataset')
     TRAIN_TYPE=''
 batch_size = 32
-num_epochs = 20
+num_epochs = 15
 '''Loading Data'''
 if LIDAR_TYPE=='CENTERED':
     POS_tr, LIDAR_tr, Y_tr, NLOS_tr = load_dataset('./data/s008_centered.npz',FLATTENED,SUM)
@@ -168,12 +168,12 @@ for beta in BETA:
             if TRAIN_TYPE in TRAIN_TYPES:
                 for ep in range(0,stumps):
                     if(TRAIN_TYPE=='CURR'):
-                        ind=np.concatenate((np.random.choice(NLOSind, int((Perc[ep])*NLOSind.shape[0])),np.random.choice(LOSind, LOSind.shape[0])),axis=None)
+                        ind=np.concatenate((np.random.choice(NLOSind, int((Perc[ep])*NLOSind.shape[0]),replace=False),np.random.choice(LOSind, LOSind.shape[0],replace=False)),axis=None)
                     elif(TRAIN_TYPE=='ANTI'):
-                        ind=np.concatenate((np.random.choice(NLOSind,NLOSind.shape[0]),np.random.choice(LOSind,int(Perc[ep]*LOSind.shape[0]))),axis=None)
+                        ind=np.concatenate((np.random.choice(NLOSind,NLOSind.shape[0],replace=False),np.random.choice(LOSind,int(Perc[ep]*LOSind.shape[0]),replace=False)),axis=None)
                     elif(TRAIN_TYPE=='VANILLA'):
                         samples=LOSind.shape[0]+int(Perc[ep]*NLOSind.shape[0])
-                        ind=np.random.choice(np.arange(0,LIDAR_tr.shape[0]),samples)
+                        ind=np.random.choice(np.arange(0,LIDAR_tr.shape[0]),samples,replace=False)
                         #ind=np.concatenate((np.random.choice(NLOSind,int(0.5*samples)),np.random.choice(LOSind,int(0.5*samples))))
                     elif(TRAIN_TYPE=='ONLY_NLOS'):
                         ind=NLOSind
@@ -191,7 +191,7 @@ for beta in BETA:
                             total_hist.history[key].extend(hist.history[key])
                 model.save_weights('./'+PATH+'/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+str(rep)+'_'+TRAIN_TYPE+'.h5')
                 c=testModel(model,LIDAR_val,POS_val,Y_val)
-                th=throughtputRatio(model,LIDAR_val,POS_val,Y_val)
+                th=throughtputRatio(model,LIDAR_val,POS_val)
                 throughtput.append(th)
                 print('Throughput s009:')
                 print('Top 1:'+str(th[0]))
@@ -210,9 +210,9 @@ for beta in BETA:
                 curves10.append(c)
             else:
                 if VAL_S009:
-                    hist = model.fit(([LIDAR_tr, POS_tr], Y_tr), validation_data=([LIDAR_val, POS_val], Y_val), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])
+                    hist = model.fit([LIDAR_tr, POS_tr], Y_tr, validation_data=([LIDAR_val, POS_val], Y_val), epochs=num_epochs, batch_size=batch_size,callbacks=[checkpoint, callback])
                 else:
-                    hist = model.fit(([LIDAR_tr, POS_tr], Y_tr), epochs=num_epochs, batch_size=batch_size,callbacks=[callback])
+                    hist = model.fit([LIDAR_tr, POS_tr], Y_tr, epochs=num_epochs, batch_size=batch_size,callbacks=[callback])
                 if rep==0:
                     total_hist=hist
                 else:
@@ -220,7 +220,7 @@ for beta in BETA:
                         total_hist.history[key].extend(hist.history[key])
                 model.save_weights('./'+PATH+'/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+str(rep)+'_'+TRAIN_TYPE+'.h5')
                 c=testModel(model,LIDAR_val,POS_val,Y_val)
-                th=throughtputRatio(model,LIDAR_val,POS_val,Y_val)
+                th=throughtputRatio(model,LIDAR_val,POS_val)
                 throughtput.append(th)
                 print('Throughput s009:')
                 print('Top 1:'+str(th[0]))
@@ -239,6 +239,7 @@ for beta in BETA:
                 curves10.append(c)
         np.save('./'+PATH+'/Curves'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE+'010', curves10)
         np.save('./'+PATH+'/Curves'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE, curves)
+        np.save('./'+PATH+'/CurvesTH'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE, throughtput)
         model.save_weights('./'+PATH+'/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+rep+'_'+TRAIN_TYPE+'.h5')
         print(NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE+'     CURVE  SAVED!')
     elif(NET_TYPE=='IPC'):

@@ -138,10 +138,10 @@ def MULTIMODAL_OLD(FLATTENED,LIDAR_TYPE):
     layer = MaxPooling2D(pool_size=(2, 2), strides=(2, 2), padding='valid')(layer)
     layer = Conv2D(16, kernel_size=(3, 3), activation='relu', padding="SAME")(layer)
     layer = Flatten()(layer)
-    out_lid = Dense(400, activation='relu', kernel_regularizer=l2(0.01), bias_regularizer=l2(0.01))(layer)
+    out_lid = Dense(200, activation='relu', kernel_regularizer=l2(0.01), bias_regularizer=l2(0.01))(layer)
     '''GPS branch'''
-    input_coord = Input(shape=(3))
-    layer = Dense(128, activation='relu')(input_coord)
+    input_coord = Input(shape=(2))
+    layer = Dense(64, activation='relu')(input_coord)
     out_coord =GaussianNoise(0.002)(layer)
     '''Concatenation'''
     concatenated = concatenate([out_lid, out_coord])
