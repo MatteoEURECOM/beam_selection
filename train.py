@@ -63,6 +63,22 @@ def testIPCModel(model,LIDAR_val,Y_val):
     curve=np.cumsum(curve)
     return curve
 
+def throughtputRatio(model,LIDAR_val,POS_val):
+    _, _, Y_val, _ =load_dataset('./data/s009_unnormalized_labels.npz',True,False)
+    preds = model.predict([LIDAR_val,POS_val])    # Get predictionspredictions
+    preds= np.argsort(-preds, axis=1) #Descending order
+    true=np.argmax(Y_val[:,:], axis=1) #Best channel
+    curve=np.zeros((len(preds),256))
+    max_gain=np.zeros(len(preds))
+    for i in range(0,len(preds)):
+        max_gain[i]=Y_val[i,true[i]]
+        curve[i,0]=Y_val[i,preds[i,0]]
+        for j in range(1,256):
+            curve[i,j]=np.max([curve[i,j-1],Y_val[i,preds[i,j]]])
+    curve=np.sum(np.log2(1+curve),axis=0)/np.sum(np.log2(max_gain+1))
+    return curve
+
+
 
 def throughtputRatioIPC(model,LIDAR_val):
     _, _, Y_val, _ =load_dataset('./data/s009_unnormalized_labels.npz',True,False)
@@ -130,8 +146,8 @@ if(NET_TYPE=='MULTIMODAL' or NET_TYPE=='MULTIMODAL_OLD' or NET_TYPE=='MIXTURE' o
     LIDAR_val = LIDAR_val * 3 - 2
     LIDAR_te = LIDAR_te * 3 - 2
 
-NLOSind_val=np.where(NLOS_tr == 0)[0]
-LOSind_val=np.where(NLOS_tr == 1)[0]
+NLOSind_val=np.where(NLOS_val == 0)[0]
+LOSind_val=np.where(NLOS_val == 1)[0]
 
 for beta in BETA:
     seed=1
