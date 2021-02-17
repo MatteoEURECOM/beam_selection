@@ -127,7 +127,7 @@ else:
 
     fig, axs = plt.subplots(2)
     # If you need more curves, just copy the above lines
-    fig.set_figheight(7)
+    fig.set_figheight(8)
     # Generating curves with proper style, marker order: o, ^, v, <, >, s. Always use empty markers and solid lines
     # Always plot better accuracy first (from the top to the bottom curve)
     # I set default markersize, as our plots will be quite close to each other
@@ -138,7 +138,7 @@ else:
     axs[0].plot(np.arange(1, 31), data_y_5[0,0:30], marker='<', linewidth=1, markevery=1,markersize=4)
     # Grid, legend, axis labels. Use LaTeX math font if necessary.
     axs[0].grid()
-    axs[0].legend(['Proposed', '[9]', '[10]'], fontsize=14, loc='lower right')
+    axs[0].legend(['Proposed', '[9]', '[11]'], fontsize=14, loc='lower right')
     #plt.legend(['NLA Mixture Curriculum','Mixture Curriculum','Mixture Vanilla', 'IPC', 'Aldebaro'], fontsize=12, loc='lower right')
     axs[0].set_xlabel("$k$", fontsize=14)
     axs[0].set_ylabel("Top-$k$ Accuracy", fontsize=14)
@@ -186,7 +186,7 @@ else:
     axs[1].plot(np.arange(1, 31), data_y_5[0,0:30], marker='<', linewidth=1, markevery=1,markersize=4)
     # Grid, legend, axis labels. Use LaTeX math font if necessary.
     axs[1].grid()
-    axs[1].legend(['Proposed', '[9]', '[10]'], fontsize=14, loc='lower right')
+    axs[1].legend(['Proposed', '[9]', '[11]'], fontsize=14, loc='lower right')
     #plt.legend(['NLA Mixture Curriculum','Mixture Curriculum','Mixture Vanilla', 'IPC', 'Aldebaro'], fontsize=12, loc='lower right')
     axs[1].set_xlabel("$k$", fontsize=14)
     axs[1].set_ylabel("Top-$k$ Throughput Ratio", fontsize=14)

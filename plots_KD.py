@@ -154,7 +154,7 @@ else:
     plt.rc('text', usetex=True)
 
     fig, axs = plt.subplots(2)
-    fig.set_figheight(7)
+    fig.set_figheight(8)
 
     axs[0].plot(np.arange(1, 31), data_y_1[0:30], marker='o', linewidth=1, markevery=1, markersize=4,color="red")
     axs[0].plot(np.arange(1, 31), data_y_2[0:30], marker='^', linewidth=1, markevery=1, markersize=4,color="orangered")
