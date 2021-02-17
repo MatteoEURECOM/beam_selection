@@ -90,18 +90,18 @@ MC_REPS=10
 BETA=[0.8]    #Beta loss values to test
 TEST_S010=False
 VAL_S009=False
-NET_TYPE = 'MULTIMODAL_OLD'    #Type of network
+NET_TYPE = 'MIXTURE'    #Type of network
 FLATTENED=True      #If True Lidar is 2D
 SUM=False     #If True uses the method lidar_to_2d_summing() instead of lidar_to_2d() in dataLoader.py to process the LIDAR
 SHUFFLE=False
 LIDAR_TYPE='ABSOLUTE'
 TRAIN_TYPES=['CURR','ANTI','VANILLA','ONLY_LOS','ONLY_NLOS']
-TRAIN_TYPE=''
+TRAIN_TYPE='ANTI'
 if TRAIN_TYPE not in TRAIN_TYPES:
     print('Vanilla training over the entire dataset')
     TRAIN_TYPE=''
 batch_size = 32
-num_epochs = 15
+num_epochs = 45
 '''Loading Data'''
 if LIDAR_TYPE=='CENTERED':
     POS_tr, LIDAR_tr, Y_tr, NLOS_tr = load_dataset('./data/s008_centered.npz',FLATTENED,SUM)
@@ -240,7 +240,7 @@ for beta in BETA:
         np.save('./'+PATH+'/Curves'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE+'010', curves10)
         np.save('./'+PATH+'/Curves'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE, curves)
         np.save('./'+PATH+'/CurvesTH'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE, throughtput)
-        model.save_weights('./'+PATH+'/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+rep+'_'+TRAIN_TYPE+'.h5')
+        model.save_weights('./'+PATH+'/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+str(rep)+'_'+TRAIN_TYPE+'.h5')
         print(NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE+'     CURVE  SAVED!')
     elif(NET_TYPE=='IPC'):
         for rep in range(0,MC_REPS):
@@ -335,13 +335,13 @@ for beta in BETA:
                     for key in hist.history.keys():
                         total_hist.history[key].extend(hist.history[key])
     '''Saving weights and history for later'''
-
-    model.save_weights('./'+PATH+'/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_FINAL_'+TRAIN_TYPE+'.h5')
-    with open('./'+PATH+'/History'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE, 'wb') as file_pi:
-        pickle.dump(total_hist.history, file_pi)
-    model.load_weights('./'+PATH+'/' + NET_TYPE + '_BETA_' + str(int(beta * 10))+'_'+TRAIN_TYPE+'.h5')
-    '''Testing on sS010'''
     if(TEST_S010):
+        model.save_weights('./'+PATH+'/'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_FINAL_'+TRAIN_TYPE+'.h5')
+        with open('./'+PATH+'/History'+NET_TYPE+'_BETA_'+str(int(beta*10))+'_'+TRAIN_TYPE, 'wb') as file_pi:
+            pickle.dump(total_hist.history, file_pi)
+        model.load_weights('./'+PATH+'/' + NET_TYPE + '_BETA_' + str(int(beta * 10))+'_'+TRAIN_TYPE+'.h5')
+        '''Testing on sS010'''
+
         if(NET_TYPE=='MULTIMODAL' or NET_TYPE=='MIXTURE'):
             preds = model.predict([LIDAR_te,POS_te])
         elif(NET_TYPE=='IPC'):
