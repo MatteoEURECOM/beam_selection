@@ -2,9 +2,119 @@ import numpy as np
 import matplotlib
 from matplotlib import pyplot as plt
 import scipy.io
+import pickle
 
 
+plt.rc('font', family='serif', serif='Computer Modern Roman', size=14) # size=14 refers to the numbers on the x, y axes.
+plt.rc('text', usetex=True)
 
+reps=10
+history_curr = pickle.load(open('Final/HistoryMIXTURE_BETA_8_CURR', "rb"))
+### Plot Validation Acc and Validation Loss
+acc_curr = history_curr['val_categorical_accuracy']
+
+max_epoch=int((len(acc_curr) + 1)/reps)
+acc_curr=np.reshape(acc_curr,(-1,max_epoch))
+epochs_curr = range(0, max_epoch)
+val_loss_curr = history_curr['val_loss']
+val_loss_curr=np.reshape(val_loss_curr,(-1,max_epoch))
+t5_curr = history_curr['val_top_5_accuracy']
+t5_curr=np.reshape(t5_curr,(-1,max_epoch))
+t10_curr = history_curr['val_top_10_accuracy']
+t10_curr=np.reshape(t10_curr,(-1,max_epoch))
+
+history_anti = pickle.load(open('Final/HistoryMIXTURE_BETA_8_ANTI', "rb"))
+### Plot Validation Acc and Validation Loss
+acc_anti = history_anti['val_categorical_accuracy']
+acc_anti=np.reshape(acc_anti,(-1,max_epoch))
+epochs_anti = range(0, max_epoch)
+val_loss_anti = history_anti['val_loss']
+val_loss_anti=np.reshape(val_loss_anti,(-1,max_epoch))
+t5_anti = history_anti['val_top_5_accuracy']
+t5_anti=np.reshape(t5_anti,(-1,max_epoch))
+t10_anti = history_anti['val_top_10_accuracy']
+t10_anti=np.reshape(t10_anti,(-1,max_epoch))
+
+history_van = pickle.load(open('Final/HistoryMIXTURE_BETA_8_VANILLA', "rb"))
+### Plot Validation Acc and Validation Loss
+acc_van = history_van['val_categorical_accuracy']
+acc_van=np.reshape(acc_van,(-1,max_epoch))
+epochs_van = range(0, max_epoch)
+val_loss_van = history_van['val_loss']
+val_loss_van=np.reshape(val_loss_van,(-1,max_epoch))
+t5_van = history_van['val_top_5_accuracy']
+t5_van=np.reshape(t5_van,(-1,max_epoch))
+t10_van = history_van['val_top_10_accuracy']
+t10_van=np.reshape(t10_van,(-1,max_epoch))
+epochs = range(0, max_epoch)
+
+plt.plot(epochs, np.mean(acc_curr,axis=0),  linewidth=2)
+std=np.sqrt(np.mean((acc_curr-np.mean(acc_curr,axis=0))**2,axis=0))
+plt.fill_between(epochs, np.mean(acc_curr,axis=0)-std, np.mean(acc_curr,axis=0)+std, color='tab:blue', alpha=.5)
+
+plt.plot(epochs, np.mean(acc_van,axis=0), linewidth=2)
+std=np.sqrt(np.mean((acc_van-np.mean(acc_van,axis=0))**2,axis=0))
+plt.fill_between(epochs, np.mean(acc_van,axis=0)-std, np.mean(acc_van,axis=0)+std,color='tab:orange', alpha=.5)
+
+plt.plot(epochs, np.mean(acc_anti,axis=0), linewidth=2)
+std=np.sqrt(np.mean((acc_anti-np.mean(acc_anti,axis=0))**2,axis=0))
+plt.fill_between(epochs, np.mean(acc_anti,axis=0)-std, np.mean(acc_anti,axis=0)+std,color='tab:green', alpha=.5)
+
+plt.legend(['Curriculum', 'Standard', 'Anticurriculum'], fontsize=16, loc='lower right')
+plt.xlabel("Epochs", fontsize=16)
+plt.ylabel("Top-1 Accuracy", fontsize=16)
+
+plt.grid()
+axes = plt.gca()
+
+plt.savefig("Top1Curves.pdf")
+plt.clf()
+
+
+plt.plot(epochs, np.mean(t5_curr,axis=0),  linewidth=2)
+std=np.sqrt(np.mean((t5_curr-np.mean(t5_curr,axis=0))**2,axis=0))
+plt.fill_between(epochs, np.mean(t5_curr,axis=0)-std, np.mean(t5_curr,axis=0)+std, color='tab:blue', alpha=.5)
+
+plt.plot(epochs, np.mean(t5_van,axis=0), linewidth=2)
+std=np.sqrt(np.mean((t5_van-np.mean(t5_van,axis=0))**2,axis=0))
+plt.fill_between(epochs, np.mean(t5_van,axis=0)-std, np.mean(t5_van,axis=0)+std,color='tab:orange', alpha=.5)
+
+plt.plot(epochs, np.mean(t5_anti,axis=0), linewidth=2)
+std=np.sqrt(np.mean((t5_anti-np.mean(t5_anti,axis=0))**2,axis=0))
+plt.fill_between(epochs, np.mean(t5_anti,axis=0)-std, np.mean(t5_anti,axis=0)+std,color='tab:green', alpha=.5)
+
+plt.legend(['Curriculum', 'Standard', 'Anticurriculum'], fontsize=16, loc='lower right')
+plt.xlabel("Epochs", fontsize=16)
+plt.ylabel("Top-5 Accuracy", fontsize=16)
+
+plt.grid()
+axes = plt.gca()
+
+plt.savefig("Top5Curves.pdf")
+plt.clf()
+
+
+plt.plot(epochs, np.mean(t10_curr,axis=0),  linewidth=2)
+std=np.sqrt(np.mean((t10_curr-np.mean(t10_curr,axis=0))**2,axis=0))
+plt.fill_between(epochs, np.mean(t10_curr,axis=0)-std, np.mean(t10_curr,axis=0)+std, color='tab:blue', alpha=.5)
+
+plt.plot(epochs, np.mean(t10_van,axis=0), linewidth=2)
+std=np.sqrt(np.mean((t10_van-np.mean(t10_van,axis=0))**2,axis=0))
+plt.fill_between(epochs, np.mean(t10_van,axis=0)-std, np.mean(t10_van,axis=0)+std,color='tab:orange', alpha=.5)
+
+plt.plot(epochs, np.mean(t10_anti,axis=0), linewidth=2)
+std=np.sqrt(np.mean((t10_anti-np.mean(t10_anti,axis=0))**2,axis=0))
+plt.fill_between(epochs, np.mean(t10_anti,axis=0)-std, np.mean(t10_anti,axis=0)+std,color='tab:green', alpha=.5)
+
+plt.legend(['Curriculum', 'Standard', 'Anticurriculum'], fontsize=16, loc='lower right')
+plt.xlabel("Epochs", fontsize=16)
+plt.ylabel("Top-10 Accuracy", fontsize=16)
+
+plt.grid()
+axes = plt.gca()
+
+plt.savefig("Top10Curves.pdf")
+plt.clf()
 
 TwoInOne=True
 
@@ -148,3 +258,6 @@ else:
     axs[1].set_ylabel("Top-$k$ Throughput Ratio", fontsize=14)
     axs[1].set_xlim([0, 30])
     plt.savefig("Curr2in1.pdf")
+
+
+

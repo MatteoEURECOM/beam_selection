@@ -1,6 +1,142 @@
 import numpy as np
 import matplotlib
 from matplotlib import pyplot as plt
+
+
+matplotlib.use('TkAgg')
+plt.rc('font', family='serif', serif='Computer Modern Roman', size=14) # size=14 refers to the numbers on the x, y axes.
+plt.rc('text', usetex=True)
+
+
+curve=np.load('Final/CurvesMIXTURE_BETA_0_VANILLA.npy')
+curve=curve/ curve[0,curve.shape[1] - 1]
+std_y_1=np.sqrt(np.mean((curve-np.mean(curve,axis=0))**2,axis=0))
+data_y_1=np.mean(curve,axis=0)
+
+curve=np.load('Final/CurvesMIXTURE_BETA_2_VANILLA.npy')
+curve=curve/ curve[0,curve.shape[1] - 1]
+std_y_2=np.sqrt(np.mean((curve-np.mean(curve,axis=0))**2,axis=0))
+data_y_2=np.mean(curve,axis=0)
+
+curve=np.load('Final/CurvesMIXTURE_BETA_4_VANILLA.npy')
+curve=curve/ curve[0,curve.shape[1] - 1]
+std_y_3=np.sqrt(np.mean((curve-np.mean(curve,axis=0))**2,axis=0))
+data_y_3=np.mean(curve,axis=0)
+
+curve=np.load('Final/CurvesMIXTURE_BETA_6_VANILLA.npy')
+curve=curve/ curve[0,curve.shape[1] - 1]
+std_y_4=np.sqrt(np.mean((curve-np.mean(curve,axis=0))**2,axis=0))
+data_y_4=np.mean(curve,axis=0)
+
+curve=np.load('Final/CurvesMIXTURE_BETA_8_VANILLA.npy')
+curve=curve/ curve[0,curve.shape[1] - 1]
+std_y_5=np.sqrt(np.mean((curve-np.mean(curve,axis=0))**2,axis=0))
+data_y_5=np.mean(curve,axis=0)
+
+curve=np.load('Final/CurvesMIXTURE_BETA_10_VANILLA.npy')
+curve=curve/ curve[0,curve.shape[1] - 1]
+std_y_6=np.sqrt(np.mean((curve-np.mean(curve,axis=0))**2,axis=0))
+data_y_6=np.mean(curve,axis=0)
+
+
+X=np.arange(3)
+plt.errorbar(X + 0.05 , [data_y_1[0],data_y_1[4],data_y_1[9]], [std_y_1[0],std_y_1[4],std_y_1[9]], linestyle='None', marker='.',capsize=2,color = 'red')
+plt.errorbar(X + 0.15, [data_y_2[0],data_y_2[4],data_y_2[9]], [std_y_2[0],std_y_2[4],std_y_2[9]], linestyle='None', marker='.',capsize=2,color = 'orangered')
+plt.errorbar(X + 0.25, [data_y_3[0],data_y_3[4],data_y_3[9]],[std_y_3[0],std_y_3[4],std_y_3[9]], linestyle='None', marker='.',capsize=2, color = 'orange')
+plt.errorbar(X + 0.35, [data_y_4[0],data_y_4[4],data_y_4[9]],[std_y_4[0],std_y_4[4],std_y_4[9]], linestyle='None', marker='.',capsize=2, color = 'khaki')
+plt.errorbar(X + 0.45, [data_y_5[0],data_y_5[4],data_y_5[9]], [std_y_5[0],std_y_5[4],std_y_5[9]],linestyle='None', marker='.',capsize=2, color = 'yellowgreen')
+plt.errorbar(X + 0.55, [data_y_6[0],data_y_6[4],data_y_6[9]], [std_y_6[0],std_y_6[4],std_y_6[9]], linestyle='None', marker='.',capsize=2,color = 'green')
+plt.xticks([0.3,1.3,2.3], ['Top-1', 'Top-5', 'Top-10'])
+plt.ylim([0, 1])
+plt.grid()
+plt.legend([r'$\beta=0$', r'$\beta=0.2$', r'$\beta=0.4$', r'$\beta=0.6$', r'$\beta=0.8$', r'$\beta=1$'], fontsize=16, loc='lower right')
+plt.xlabel("$k$", fontsize=16)
+plt.ylabel("Accuracy", fontsize=16)
+plt.savefig("ErrorarPlotAcc.pdf")
+
+plt.clf()
+
+X=np.arange(3)
+plt.bar(X + 0.05 , [data_y_1[0],data_y_1[4],data_y_1[9]], color = 'red', width = 0.1)
+plt.bar(X + 0.15, [data_y_2[0],data_y_2[4],data_y_2[9]], color = 'orangered', width = 0.1)
+plt.bar(X + 0.25, [data_y_3[0],data_y_3[4],data_y_3[9]], color = 'orange', width = 0.1)
+plt.bar(X + 0.35, [data_y_4[0],data_y_4[4],data_y_4[9]], color = 'khaki', width = 0.1)
+plt.bar(X + 0.45, [data_y_5[0],data_y_5[4],data_y_5[9]], color = 'yellowgreen', width = 0.1)
+plt.bar(X + 0.55, [data_y_6[0],data_y_6[4],data_y_6[9]], color = 'green', width = 0.1)
+plt.xticks([0.3,1.3,2.3], ['Top-1', 'Top-5', 'Top-10'])
+plt.ylim([0, 1])
+plt.grid()
+plt.legend([r'$\beta=0$', r'$\beta=0.2$', r'$\beta=0.4$', r'$\beta=0.6$', r'$\beta=0.8$', r'$\beta=1$'], fontsize=16, loc='lower right')
+plt.xlabel("$k$", fontsize=16)
+plt.ylabel("Accuracy", fontsize=16)
+plt.savefig("BarPlotAcc.pdf")
+
+plt.clf()
+
+
+curve=np.load('Final/CurvesTHMIXTURE_BETA_0_VANILLA.npy')
+curve=curve/ curve[0,curve.shape[1] - 1]
+std_y_1=np.sqrt(np.mean((curve-np.mean(curve,axis=0))**2,axis=0))
+data_y_1=np.mean(curve,axis=0)
+
+curve=np.load('Final/CurvesTHMIXTURE_BETA_2_VANILLA.npy')
+curve=curve/ curve[0,curve.shape[1] - 1]
+std_y_2=np.sqrt(np.mean((curve-np.mean(curve,axis=0))**2,axis=0))
+data_y_2=np.mean(curve,axis=0)
+
+curve=np.load('Final/CurvesTHMIXTURE_BETA_4_VANILLA.npy')
+curve=curve/ curve[0,curve.shape[1] - 1]
+std_y_3=np.sqrt(np.mean((curve-np.mean(curve,axis=0))**2,axis=0))
+data_y_3=np.mean(curve,axis=0)
+
+curve=np.load('Final/CurvesTHMIXTURE_BETA_6_VANILLA.npy')
+curve=curve/ curve[0,curve.shape[1] - 1]
+std_y_4=np.sqrt(np.mean((curve-np.mean(curve,axis=0))**2,axis=0))
+data_y_4=np.mean(curve,axis=0)
+
+curve=np.load('Final/CurvesTHMIXTURE_BETA_8_VANILLA.npy')
+curve=curve/ curve[0,curve.shape[1] - 1]
+std_y_5=np.sqrt(np.mean((curve-np.mean(curve,axis=0))**2,axis=0))
+data_y_5=np.mean(curve,axis=0)
+
+curve=np.load('Final/CurvesTHMIXTURE_BETA_10_VANILLA.npy')
+curve=curve/ curve[0,curve.shape[1] - 1]
+std_y_6=np.sqrt(np.mean((curve-np.mean(curve,axis=0))**2,axis=0))
+data_y_6=np.mean(curve,axis=0)
+
+X=np.arange(3)
+plt.errorbar(X + 0.05 , [data_y_1[0],data_y_1[4],data_y_1[9]], [std_y_1[0],std_y_1[4],std_y_1[9]], linestyle='None', marker='.',capsize=2,color = 'red')
+plt.errorbar(X + 0.15, [data_y_2[0],data_y_2[4],data_y_2[9]], [std_y_2[0],std_y_2[4],std_y_2[9]], linestyle='None', marker='.',capsize=2,color = 'orangered')
+plt.errorbar(X + 0.25, [data_y_3[0],data_y_3[4],data_y_3[9]],[std_y_3[0],std_y_3[4],std_y_3[9]], linestyle='None', marker='.',capsize=2, color = 'orange')
+plt.errorbar(X + 0.35, [data_y_4[0],data_y_4[4],data_y_4[9]],[std_y_4[0],std_y_4[4],std_y_4[9]], linestyle='None', marker='.',capsize=2, color = 'khaki')
+plt.errorbar(X + 0.45, [data_y_5[0],data_y_5[4],data_y_5[9]], [std_y_5[0],std_y_5[4],std_y_5[9]],linestyle='None', marker='.',capsize=2, color = 'yellowgreen')
+plt.errorbar(X + 0.55, [data_y_6[0],data_y_6[4],data_y_6[9]], [std_y_6[0],std_y_6[4],std_y_6[9]], linestyle='None', marker='.',capsize=2,color = 'green')
+plt.xticks([0.3,1.3,2.3], ['Top-1', 'Top-5', 'Top-10'])
+plt.ylim([0, 1])
+plt.grid()
+plt.legend([r'$\beta=0$', r'$\beta=0.2$', r'$\beta=0.4$', r'$\beta=0.6$', r'$\beta=0.8$', r'$\beta=1$'], fontsize=16, loc='lower right')
+plt.xlabel("$k$", fontsize=16)
+plt.ylabel("Throughput Ratio", fontsize=16)
+plt.savefig("ErrorarPlotTh.pdf")
+
+plt.clf()
+
+
+X=np.arange(3)
+plt.bar(X + 0.05, [data_y_1[0],data_y_1[4],data_y_1[9]], color = 'red', width = 0.1)
+plt.bar(X + 0.15, [data_y_2[0],data_y_2[4],data_y_2[9]], color = 'orangered', width = 0.1)
+plt.bar(X + 0.25, [data_y_3[0],data_y_3[4],data_y_3[9]], color = 'orange', width = 0.1)
+plt.bar(X + 0.35, [data_y_4[0],data_y_4[4],data_y_4[9]], color = 'khaki', width = 0.1)
+plt.bar(X + 0.45, [data_y_5[0],data_y_5[4],data_y_5[9]], color = 'yellowgreen', width = 0.1)
+plt.bar(X + 0.55, [data_y_6[0],data_y_6[4],data_y_6[9]], color = 'green', width = 0.1)
+plt.xticks([0.3,1.3,2.3], ['Top-1', 'Top-5', 'Top-10'])
+plt.ylim([0, 1])
+plt.grid()
+plt.legend([r'$\beta=0$', r'$\beta=0.2$', r'$\beta=0.4$', r'$\beta=0.6$', r'$\beta=0.8$', r'$\beta=1$'], fontsize=16, loc='lower right')
+plt.xlabel("$k$", fontsize=16)
+plt.ylabel("Throughput", fontsize=16)
+plt.savefig("BarPlotTh.pdf")
+
 TwoInOne=True
 
 if(not TwoInOne):
